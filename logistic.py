@@ -3,7 +3,7 @@
 import numpy as np
 from itertools import izip
 
-def label_data(data, theta, binarize=True):
+def label_data(data, theta, normalizer=0.0, binarize=True):
     """Accepts data array and theta parameters.
         data is of size (NxD).
         theta is of size (Dx1)
@@ -12,7 +12,7 @@ def label_data(data, theta, binarize=True):
             which rounds everything to 1 or 0 if Tru if True.
     """
     data = prepend_column_of_ones(data)
-    s = sigmoid(np.dot(data, theta))
+    s = logistic_sigmoid(np.dot(data, theta), normalizer)
     if binarize:
         s = np.array([(1 if a > 0.5 else 0) for a in s])
     return s
@@ -24,7 +24,7 @@ def prepend_column_of_ones(X):
     N,M = X.shape
     return np.hstack([np.ones((N,1)), X])
 
-def modified_logistic_gradient_descent(X, s):
+def modified_logistic_gradient_descent(X, S):
     """Accepts same as logistic regression.
         Returns 2-tuple of weights theta, and also upper bound variable b.
         Returns (theta, b).
@@ -32,35 +32,40 @@ def modified_logistic_gradient_descent(X, s):
         See the paper "A Probabilistic Approach 
                 to the Positive and Unlabeled Learning Problem by Jaskie."
     """
-    max_iters = 1000
+    max_iters = 100
     alpha = 0.01 / max_iters
     N,M = X.shape
 
-    assert len(s) == N
+    assert len(S) == N
 
     # prepend col of ones for intercept term
     X = prepend_column_of_ones(X) 
 
     theta = np.zeros((M+1,))
-    b = 0.0
+    b = 1.0
     for t in xrange(1, max_iters):
-        ewx = np.exp(-np.dot(X, theta))
-        assert ewx.shape == (N, M+1)
-        b2ewx = (b * b) + ewx
+        for i in xrange(N):
+            x = X[i,:]
+            s = S[i]
 
-        p = ((s - 1) / b2ewx) + (1 / (1 + b2ewx))
-        assert p.shape == (N,)
+            ewx = np.exp(-np.dot(x, theta))
+            assert isinstance(ewx, float)
+            b2ewx = (b * b) + ewx
+            assert isinstance(b2ewx, float)
 
-        dLdw = p * np.dot(p, X) * ewx
-        assert dLdW.shape == (M,)
+            p = ((s - 1) / b2ewx) + (1 / (1 + b2ewx))
+            assert isinstance(p, float)
 
-        dLdb = 2 * np.dot(p, b)
-        assert isinstance(dLdb, float)
+            dLdw = (p * ewx) * x
+            assert dLdw.shape == (M+1,)
 
-        theta = theta + (alpha * dLdw)
-        b = b + (alpha * dLdb)
+            dLdb = -2 * p * b
+            assert isinstance(dLdb, float)
+
+            theta = theta + (alpha * dLdw)
+            b = b + (alpha * dLdb)
         print t
-    return theta
+    return theta, b
 
 def logistic_gradient_descent(X, y):
     """Accepts data X, an NxM matrix.
@@ -85,9 +90,9 @@ def logistic_gradient_descent(X, y):
         print t
     return theta
 
-def logistic_sigmoid(v):
+def logistic_sigmoid(v, normalizer=0.0):
     """Returns 1 / (1 + e^(-v))"""
-    return 1.0 / (1 + np.exp(-v))
+    return 1.0 / (1 + normalizer + np.exp(-v))
 
 def generate_random_points(N, center=np.array([0,0]), scale=np.array([1,1])):
     """Accepts an integer N of number of points to generate.
@@ -196,9 +201,9 @@ def logistic_regression_from_pos_neg(pos, neg):
 
 
 if __name__ == '__main__':
-    pp = 0.80
-    num_points = 10000
-    c = 0.30
+    pp = 0.60
+    num_points = 1000
+    c = 0.50
 
     pos, neg = generate_mostly_separable(num_points, pp)
     pos, neg = generate_complete_overlap(num_points, pp)
@@ -210,15 +215,31 @@ if __name__ == '__main__':
     #graph_pos_neg(pos, neg)
     #graph_pos_neg(pos_sample, unlabeled)
 
-    #theta = logistic_regression_from_pos_neg(pos, neg)
-    theta = logistic_regression_from_pos_neg(pos_sample, unlabeled)
+    theta = logistic_regression_from_pos_neg(pos, neg)
+
+    X = np.vstack([pos_sample, unlabeled])
+    y = np.hstack([np.array([1] * len(pos_sample)),
+                   np.array([0] * len(unlabeled)),])
+    thetaR = logistic_gradient_descent(X, y)
+    thetaMR, b = modified_logistic_gradient_descent(X, y)
+
+    e2 = ( sum(label_data(pos_sample, thetaR, binarize=False)) / 
+                sum(label_data(np.vstack([pos_sample, unlabeled]),
+                                         thetaR,
+                                         binarize=False)) )
+    e4 = (1 / (1 + (b * b)))
 
     data = generate_random_points(10000,
                                   center=np.array([2,2]), 
                                   scale=np.array([10,10]))
-    labels = label_data(data, theta, binarize=True)
+
+    labelsR = label_data(data, thetaR, binarize=True)
+    labelsMR = label_data(data, thetaMR, (b*b), binarize=True)
+
+    print 'e2', e2
+    print 'e4', e4
 
     # visually test that this works
-    graph_labeled_data(data, labels) 
-
+    graph_labeled_data(data, labelsR)
+    graph_labeled_data(data, labelsMR)
 

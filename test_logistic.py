@@ -12,7 +12,7 @@ def test_logistic_regression():
     data = logistic.generate_random_points(100, 
                                            center=np.array([2,2]), 
                                            scale=np.array([5,5]))
-    theta = logistic.logistic_gradient_ascent(X, y)
+    theta = logistic.logistic_gradient_descent(X, y)
     labels = logistic.label_data(data, theta, binarize=True)
     assert len([l for l in labels if l == 0]) > 10
     assert len([l for l in labels if l == 1]) > 10
