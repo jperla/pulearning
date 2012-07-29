@@ -202,7 +202,7 @@ def logistic_regression_from_pos_neg(pos, neg):
 
 if __name__ == '__main__':
     pp = 0.60
-    num_points = 1000
+    num_points = 10000
     c = 0.50
 
     pos, neg = generate_mostly_separable(num_points, pp)
