@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import numpy as np
-from itertools import izip
 
 def label_data(data, theta, normalizer=0.0, binarize=True):
     """Accepts data array and theta parameters.
@@ -43,24 +42,25 @@ def modified_logistic_gradient_descent(X, S):
 
     theta = np.zeros((M+1,))
     b = 1.0
+    #TODO: jperla: can this be faster?
     for t in xrange(1, max_iters):
         for i in xrange(N):
             x = X[i,:]
             s = S[i]
 
             ewx = np.exp(-np.dot(x, theta))
-            assert isinstance(ewx, float)
+            #assert isinstance(ewx, float)
             b2ewx = (b * b) + ewx
-            assert isinstance(b2ewx, float)
+            #assert isinstance(b2ewx, float)
 
             p = ((s - 1) / b2ewx) + (1 / (1 + b2ewx))
-            assert isinstance(p, float)
+            #assert isinstance(p, float)
 
             dLdw = (p * ewx) * x
-            assert dLdw.shape == (M+1,)
+            #assert dLdw.shape == (M+1,)
 
             dLdb = -2 * p * b
-            assert isinstance(dLdb, float)
+            #assert isinstance(dLdb, float)
 
             theta = theta + (alpha * dLdw)
             b = b + (alpha * dLdb)
@@ -174,6 +174,12 @@ def generate_complete_overlap(N, pp):
     return generate_pos_neg_points(N, pp, positive_center=np.array([0, 0]))
 
 def sample_positive(c, pos, neg):
+    """Accepts a proportion float c, and two arrays of points (NxD).
+        Selects the fraction c of the pos points, completely at random.
+        Returns a 2-tuple of arrays of points (PxD) and (QxD) where N=P+Q.
+            The first part is the random selection of pos points.
+            The second is the remaining pos points and negative points.
+    """
     assert 0 < c <= 1
     num_sample = int(pos.shape[0] * c)
     pos_scrambled = np.random.permutation(pos)
@@ -199,47 +205,91 @@ def logistic_regression_from_pos_neg(pos, neg):
     theta = logistic_gradient_descent(X, y)
     return theta
 
-
-if __name__ == '__main__':
-    pp = 0.60
-    num_points = 10000
-    c = 0.50
-
-    pos, neg = generate_mostly_separable(num_points, pp)
-    pos, neg = generate_complete_overlap(num_points, pp)
-    pos, neg = generate_some_overlap(num_points, pp)
-    pos, neg = generate_well_separable(num_points, pp)
-
-    pos_sample, unlabeled = sample_positive(c, pos, neg)
-
-    #graph_pos_neg(pos, neg)
-    #graph_pos_neg(pos_sample, unlabeled)
-
-    theta = logistic_regression_from_pos_neg(pos, neg)
-
+def calculate_estimators(pos_sample, unlabeled, 
+                         validation_pos_sample, validation_unlabeled):
+    """Accepts Positive samples and unlabeled sets.
+            Also accepts validation set equivalents.
+       Returns 5-tuple of estimators, (e1, e2, e3, e1_hat, e4_hat)
+            according to the paper.
+    """
     X = np.vstack([pos_sample, unlabeled])
     y = np.hstack([np.array([1] * len(pos_sample)),
                    np.array([0] * len(unlabeled)),])
     thetaR = logistic_gradient_descent(X, y)
     thetaMR, b = modified_logistic_gradient_descent(X, y)
 
-    e2 = ( sum(label_data(pos_sample, thetaR, binarize=False)) / 
-                sum(label_data(np.vstack([pos_sample, unlabeled]),
-                                         thetaR,
-                                         binarize=False)) )
-    e4 = (1 / (1 + (b * b)))
+    s = validation_pos_sample
+    u = validation_unlabeled
+
+    gR_s = label_data(s, thetaR, binarize=False)
+    gR_V = label_data(np.vstack([s, u]), thetaR, binarize=False)
+    e1 = sum(gR_s) / float(len(s))
+    e2 = (sum(gR_s) / sum(gR_V))
+    e3 = max(gR_V)
+
+    gMR_s = label_data(s, thetaMR, (b * b), binarize=False)
+    e1_hat = sum(gMR_s) / len(s)
+    e4_hat = (1 / (1 + (b * b)))
+
+    return e1, e2, e3, e1_hat, e4_hat
+
+if __name__ == '__main__':
+    pps = [0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3, 0.4,]
+    cs = [0.1, 0.3, 0.5, 0.7, 0.9,]
+
+    dists = [generate_well_separable,
+             generate_mostly_separable,
+             generate_some_overlap,
+             generate_complete_overlap,
+    ]
+
+    num_points = 10000
+
+    table = []
+    for pp in pps:
+      if pp >= 0.5:
+        for d in dists:
+            pos, neg = d(num_points, pp)
+            for c in cs:
+                pos_sample, unlabeled = sample_positive(c, pos, neg)
+                # validation set:
+                v_p, v_u = sample_positive(c, *d(num_points, pp))
+
+                estimators = calculate_estimators(pos_sample, unlabeled,
+                                                  v_p, v_u)
+                table.append((pp, d.func_name, c, estimators))
+
+                #e1, e2, e3, e1_hat, e4_hat = estimators
+                print estimators
+                
+        
+    '''
+    pos, neg = generate_mostly_separable(num_points, pp)
+    pos, neg = generate_complete_overlap(num_points, pp)
+    pos, neg = generate_some_overlap(num_points, pp)
+    pos, neg = generate_well_separable(num_points, pp)
+
+    graph_pos_neg(pos, neg)
+    graph_pos_neg(pos_sample, unlabeled)
+
+    theta = logistic_regression_from_pos_neg(pos, neg)
 
     data = generate_random_points(10000,
                                   center=np.array([2,2]), 
                                   scale=np.array([10,10]))
 
+
     labelsR = label_data(data, thetaR, binarize=True)
     labelsMR = label_data(data, thetaMR, (b*b), binarize=True)
 
+    print 'e1', e1
     print 'e2', e2
-    print 'e4', e4
+    print 'e3', e3
+    print 'e1_hat', e1_hat
+    print 'e4_hat', e4_hat
 
     # visually test that this works
     graph_labeled_data(data, labelsR)
     graph_labeled_data(data, labelsMR)
+    '''
 
