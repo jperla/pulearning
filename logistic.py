@@ -26,6 +26,9 @@ def label_data(data, theta, normalizer=0.0, binarize=True):
 # Standard Stochastic Logistic Regression 
 ###########################################
 
+ALPHA = 0.1
+MAX_ITER = 100
+
 
 def prepend_and_vars(X):
     """Adds bias term column to X, returns new X, theta zeros, and
@@ -34,11 +37,8 @@ def prepend_and_vars(X):
     # prepend col of ones for intercept term
     X = prepend_column_of_ones(X) 
     N,M = X.shape
-    theta = np.zeros((M,), dtype=float)
+    theta = np.zeros((M,)) + 0.01
     return X, theta, N, M
-
-alpha = 0.1
-max_iters = 100
 
 def prepend_column_of_ones(X):
     """Accepts data array of points (NxD).
@@ -47,19 +47,21 @@ def prepend_column_of_ones(X):
     N,M = X.shape
     return np.hstack([np.ones((N,1)), X])
 
-def fast_modified_logistic_gradient_descent(X, S):
+def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
     """Same but uses Cython."""
     X, theta, N, M = prepend_and_vars(X)
 
-    alpha = 0.01
-    l = (alpha / max_iters)
+    if max_iter == 0:
+        return theta, b
+
+    l = (alpha / max(MAX_ITER, max_iter))
     S = np.array(S, dtype=float)
     
-    b = clogistic.modified_logistic_regression(theta, X, S, N, M, max_iters, l)
+    b = clogistic.modified_logistic_regression(theta, X, S, N, M, max_iter, l, b)
 
     return theta, b
 
-def modified_logistic_gradient_descent(X, S):
+def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
     """Accepts same as logistic regression.
         Returns 2-tuple of weights theta, and also upper bound variable b.
         Returns (theta, b).
@@ -68,15 +70,15 @@ def modified_logistic_gradient_descent(X, S):
                 to the Positive and Unlabeled Learning Problem by Jaskie."
     """
     X, theta, N, M = prepend_and_vars(X)
-    alpha = 0.01
-    max_iters = 100
 
-    l = alpha / max_iters
+    if max_iter == 0:
+        return theta, b
+
+    l = (alpha / max(MAX_ITER, max_iter))
     assert len(S) == N
 
-    b = 1.0
     #TODO: jperla: can this be faster?
-    for t in xrange(1, max_iters):
+    for t in xrange(1, max_iter + 1):
         for i in xrange(N):
             x = X[i,:]
             s = S[i]
@@ -105,18 +107,21 @@ def modified_logistic_gradient_descent(X, S):
 
 
 
-def fast_logistic_gradient_descent(X, y):
+def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
     """Computes same as below, but uses Cython module."""
     X, theta, N, M = prepend_and_vars(X)
-
-    l = (alpha / max_iters)
-    y = np.array(y, dtype=float)
     
-    clogistic.logistic_regression(theta, X, y, N, M, max_iters, l)
+    if max_iter == 0:
+        return theta
+
+    l = (alpha / max(MAX_ITER, max_iter))
+    y = np.array(y, dtype=np.float)
+
+    clogistic.logistic_regression(theta, X, y, N, M, max_iter, l)
 
     return theta
 
-def logistic_gradient_descent(X, y):
+def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
     """Accepts data X, an NxM matrix.
         Accepts y, an Nx1 array of binary values (0 or 1)
         Returns an Mx1 array of logistic regression parameters.
@@ -125,12 +130,16 @@ def logistic_gradient_descent(X, y):
             http://cs229.stanford.edu/section/matlab/logistic_grad_ascent.m
     """
     X, theta, N, M = prepend_and_vars(X)
+    
+    if max_iter == 0:
+        return theta
 
-    for t in xrange(1, max_iters + 1):
-        l = (alpha / t)
+    l = (alpha / max(MAX_ITER, max_iter))
+    for t in xrange(1, max_iter + 1):
         for r in xrange(N):
             hx = logistic_sigmoid(np.dot(X[r], theta))
             #assert isinstance(hx, float)
+            #import pdb; pdb.set_trace()
             theta += l * (y[r] - hx) * X[r]
 
         if t % 30 == 0:
@@ -140,8 +149,8 @@ def logistic_gradient_descent(X, y):
             print 'll: %s' % ll
 
     '''
-    l = (alpha / max_iters)
-    for t in xrange(1, max_iters + 1):
+    l = (alpha / max(MAX_ITER, max_iter))
+    for t in xrange(1, max_iter + 1):
         hx = logistic_sigmoid(np.dot(X, theta))
         assert hx.shape == (N,)
         theta += l * (1.0 / N) * np.dot((y-hx), X)
@@ -321,8 +330,10 @@ def calculate_estimators(pos_sample, unlabeled,
 if __name__ == '__main__':
     pps = [0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3, 0.4,]
     cs = [0.1, 0.3, 0.5, 0.7, 0.9,]
+    cs = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9,]
+
     pps = [0.5, 0.9, 0.1,]
-    cs = [0.1, 0.5, 0.9,]
+    cs = [0.5, 0.1, 0.9, 0.01,]
 
     dists = [generate_well_separable,
              generate_mostly_separable,
@@ -345,12 +356,15 @@ if __name__ == '__main__':
                 estimators = calculate_estimators(pos_sample, unlabeled,
                                                   v_p, v_u)
 
-                t = (pp, d.func_name, c, estimators)
+                t = (pp, d.func_name, c,) + estimators
                 print t
                 table.append(t)
 
                 #e1, e2, e3, e1_hat, e4_hat = estimators
                 
+    with open('table.json', 'w') as f:
+        import json
+        f.write(json.dumps(table))
         
     '''
     pos, neg = generate_mostly_separable(num_points, pp)

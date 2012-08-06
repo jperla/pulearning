@@ -1,8 +1,66 @@
+#!/usr/bin/env python
+from functools import partial
+
 import numpy as np
+
 import logistic
 
+def test_manual_standard_logistic_regression():
+    X = np.array([[0, 1, 1],
+                  [1, 0, 0],
+                  [0, 0, 1]])
+    y = np.array([0, 1, 0])
 
-def test_logistic_regression():
+
+    for i in xrange(40):
+        theta = logistic.logistic_gradient_descent(X, y, max_iter=i, alpha=0.1)
+        thetaFast = logistic.fast_logistic_gradient_descent(X, y, max_iter=i, alpha=0.1)
+
+        thetaM, b = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
+        assert b == 0.0
+        thetaMFast, b = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
+        assert b == 0.0
+
+        close = partial(np.allclose, rtol=0.01, atol=0.0001)
+        if i == 0:
+            assert np.allclose(theta, [0.01, 0.01, 0.01, 0.01])
+        elif i == 1:
+            answer = [0.0095, 0.0105, 0.0095, 0.009]
+            assert close(theta, answer)
+            theta[2] += 0.0003
+            assert not close(theta, answer)
+            theta[2] -= 0.0003
+        elif i == 2:
+            answer = [0.009,  0.011,  0.009,  0.008]
+            assert close(theta, answer)
+            assert not close(theta * 0.8, answer)
+        elif i == 3:
+            answer = [0.0085,  0.0115,  0.0085,  0.007]
+            assert close(theta, answer)
+            assert not close(theta + 0.0003, answer)
+
+        assert np.allclose(theta, thetaFast)
+        
+        # and make sure that the modified version is a superset of normal one
+        assert np.allclose(theta, thetaM)
+        assert np.allclose(theta, thetaMFast)
+
+
+    for i in xrange(40):
+        # make sure C version is same as other version
+        theta, b = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
+        thetaFast, bFast = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
+
+        assert np.allclose(theta, thetaFast)
+        assert not np.allclose(theta + 0.001, thetaFast)
+        assert b == bFast
+
+        #TODO: jperla: hardcode some values in 
+
+
+
+
+def test_end_to_end_logistic_regression():
     pos, neg = logistic.generate_well_separable(100, 0.50)
 
     #graph_pos_neg(pos, neg)
