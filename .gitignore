@@ -1,3 +1,11 @@
+#data
+*.json
+
+proteindata/*
+
+# vim
+*.swp
+
 *.py[co]
 
 # Packages

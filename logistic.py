@@ -2,6 +2,9 @@
 
 import numpy as np
 
+import pyximport; pyximport.install()
+import clogistic
+
 def label_data(data, theta, normalizer=0.0, binarize=True):
     """Accepts data array and theta parameters.
         data is of size (NxD).
@@ -16,12 +19,46 @@ def label_data(data, theta, normalizer=0.0, binarize=True):
         s = np.array([(1 if a > 0.5 else 0) for a in s])
     return s
 
+
+
+
+###########################################
+# Standard Stochastic Logistic Regression 
+###########################################
+
+
+def prepend_and_vars(X):
+    """Adds bias term column to X, returns new X, theta zeros, and
+        new shape of X/theta.
+    """
+    # prepend col of ones for intercept term
+    X = prepend_column_of_ones(X) 
+    N,M = X.shape
+    theta = np.zeros((M,), dtype=float)
+    return X, theta, N, M
+
+alpha = 0.1
+max_iters = 1000
+
 def prepend_column_of_ones(X):
     """Accepts data array of points (NxD).
         Returns new array with 1's prepended as first column, (Nx(D+1))
     """
     N,M = X.shape
     return np.hstack([np.ones((N,1)), X])
+
+def fast_modified_logistic_gradient_descent(X, S):
+    """Same but uses Cython."""
+    X, theta, N, M = prepend_and_vars(X)
+
+    alpha = 0.01
+    max_iters = 100
+    l = (alpha / max_iters)
+    S = np.array(S, dtype=float)
+    
+    b = clogistic.logistic_regression(theta, X, y, N, M, max_iters, l)
+
+    return theta, b
 
 def modified_logistic_gradient_descent(X, S):
     """Accepts same as logistic regression.
@@ -31,16 +68,13 @@ def modified_logistic_gradient_descent(X, S):
         See the paper "A Probabilistic Approach 
                 to the Positive and Unlabeled Learning Problem by Jaskie."
     """
+    X, theta, N, M = prepend_and_vars(X)
+    alpha = 0.01
     max_iters = 100
-    alpha = 0.01 / max_iters
-    N,M = X.shape
 
+    l = alpha / max_iters
     assert len(S) == N
 
-    # prepend col of ones for intercept term
-    X = prepend_column_of_ones(X) 
-
-    theta = np.zeros((M+1,))
     b = 1.0
     #TODO: jperla: can this be faster?
     for t in xrange(1, max_iters):
@@ -53,7 +87,7 @@ def modified_logistic_gradient_descent(X, S):
             b2ewx = (b * b) + ewx
             #assert isinstance(b2ewx, float)
 
-            p = ((s - 1) / b2ewx) + (1 / (1 + b2ewx))
+            p = ((s - 1.0) / b2ewx) + (1.0 / (1.0 + b2ewx))
             #assert isinstance(p, float)
 
             dLdw = (p * ewx) * x
@@ -62,10 +96,26 @@ def modified_logistic_gradient_descent(X, S):
             dLdb = -2 * p * b
             #assert isinstance(dLdb, float)
 
-            theta = theta + (alpha * dLdw)
-            b = b + (alpha * dLdb)
-        print t
+            theta = theta + (l * dLdw)
+            b = b + (l * dLdb)
+
+        print t, (1.0 / (1.0 + (b * b)))
+        if t % 10 == 0:
+            print t, (1.0 / (1.0 + (b * b)))
     return theta, b
+
+
+
+def fast_logistic_gradient_descent(X, y):
+    """Computes same as below, but uses Cython module."""
+    X, theta, N, M = prepend_and_vars(X)
+
+    l = (alpha / max_iters)
+    y = np.array(y, dtype=float)
+    
+    clogistic.logistic_regression(theta, X, y, N, M, max_iters, l)
+
+    return theta
 
 def logistic_gradient_descent(X, y):
     """Accepts data X, an NxM matrix.
@@ -75,19 +125,34 @@ def logistic_gradient_descent(X, y):
         Based on Andrew Ng's Matlab implementation: 
             http://cs229.stanford.edu/section/matlab/logistic_grad_ascent.m
     """
-    max_iters = 1000
-    alpha = 0.01 / max_iters
-    N,M = X.shape
+    X, theta, N, M = prepend_and_vars(X)
 
-    # prepend col of ones for intercept term
-    X = prepend_column_of_ones(X) 
+    for t in xrange(1, max_iters + 1):
+        l = (alpha / t)
+        for r in xrange(N):
+            hx = logistic_sigmoid(np.dot(X[r], theta))
+            #assert isinstance(hx, float)
+            theta += l * (y[r] - hx) * X[r]
 
-    theta = np.zeros((M+1,))
-    for t in xrange(1, max_iters):
+        if t % 30 == 0:
+            print t
+            hx = logistic_sigmoid(np.dot(X, theta))
+            ll =  np.sum((y * np.log(hx)) + ((1.0 - y) * np.log(1.0 - hx)))
+            print 'll: %s' % ll
+
+    '''
+    l = (alpha / max_iters)
+    for t in xrange(1, max_iters + 1):
         hx = logistic_sigmoid(np.dot(X, theta))
         assert hx.shape == (N,)
-        theta = theta + (alpha * np.dot((y-hx), X))
-        print t
+        theta += l * (1.0 / N) * np.dot((y-hx), X)
+
+        if t == 1 or t % 500 == 0:
+            ll =  np.sum((y * np.log(hx)) + ((1.0 - y) * np.log(1.0 - hx)))
+            print t
+            print 'll: %s' % ll
+    '''
+
     return theta
 
 def logistic_sigmoid(v, normalizer=0.0):
@@ -173,6 +238,14 @@ def generate_complete_overlap(N, pp):
     """Returns 2 sets of points with same centers. Total overlap."""
     return generate_pos_neg_points(N, pp, positive_center=np.array([0, 0]))
 
+def sample_split(a, num_split):
+    """Accepts an array.  
+        Splits the data along the first axis of the array.
+        Returns 2 arrays which can be vstack ed to form original a (scrambled).
+    """
+    a_scrambled = np.random.permutation(a)
+    return a_scrambled[:num_split], a_scrambled[num_split:]
+
 def sample_positive(c, pos, neg):
     """Accepts a proportion float c, and two arrays of points (NxD).
         Selects the fraction c of the pos points, completely at random.
@@ -182,14 +255,13 @@ def sample_positive(c, pos, neg):
     """
     assert 0 < c <= 1
     num_sample = int(pos.shape[0] * c)
-    pos_scrambled = np.random.permutation(pos)
 
-    pos_sample = pos_scrambled[:num_sample]
-    unlabeled = np.vstack([pos_scrambled[num_sample:], neg])
+    pos_sample, remaining = sample_split(pos, num_sample)
+    unlabeled = np.vstack([remaining, neg])
     assert pos_sample.shape[1] == unlabeled.shape[1]
 
     # shuffle to make it more random
-    #np.random.shuffle(unlabeled)
+    np.random.shuffle(unlabeled)
 
     return pos_sample, unlabeled
 
@@ -215,8 +287,14 @@ def calculate_estimators(pos_sample, unlabeled,
     X = np.vstack([pos_sample, unlabeled])
     y = np.hstack([np.array([1] * len(pos_sample)),
                    np.array([0] * len(unlabeled)),])
+
+    thetaR = fast_logistic_gradient_descent(X, y)
+    thetaMR, b = fast_modified_logistic_gradient_descent(X, y)
+    '''
     thetaR = logistic_gradient_descent(X, y)
     thetaMR, b = modified_logistic_gradient_descent(X, y)
+    '''
+    #thetaMR, b = thetaR, 0.0
 
     s = validation_pos_sample
     u = validation_unlabeled
@@ -229,13 +307,15 @@ def calculate_estimators(pos_sample, unlabeled,
 
     gMR_s = label_data(s, thetaMR, (b * b), binarize=False)
     e1_hat = sum(gMR_s) / len(s)
-    e4_hat = (1 / (1 + (b * b)))
+    e4_hat = (1.0 / (1.0 + (b * b)))
 
     return e1, e2, e3, e1_hat, e4_hat
 
 if __name__ == '__main__':
     pps = [0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3, 0.4,]
     cs = [0.1, 0.3, 0.5, 0.7, 0.9,]
+    pps = [0.5, 0.9, 0.1,]
+    cs = [0.1, 0.5, 0.9,]
 
     dists = [generate_well_separable,
              generate_mostly_separable,
@@ -247,20 +327,22 @@ if __name__ == '__main__':
 
     table = []
     for pp in pps:
-      if pp >= 0.5:
         for d in dists:
             pos, neg = d(num_points, pp)
             for c in cs:
                 pos_sample, unlabeled = sample_positive(c, pos, neg)
                 # validation set:
                 v_p, v_u = sample_positive(c, *d(num_points, pp))
+                #v_p, v_u = d(num_points, pp)
 
                 estimators = calculate_estimators(pos_sample, unlabeled,
                                                   v_p, v_u)
-                table.append((pp, d.func_name, c, estimators))
+
+                t = (pp, d.func_name, c, estimators)
+                print t
+                table.append(t)
 
                 #e1, e2, e3, e1_hat, e4_hat = estimators
-                print estimators
                 
         
     '''
