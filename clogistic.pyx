@@ -72,14 +72,16 @@ def modified_logistic_regression(
                   M is dimensionality of data.
     """
     cdef double b = 1.0
-    cdef double s, wx, ewx, b2ewx, p, dLdb
-    cdef int t, r
+    cdef double x, s, wx, ewx, b2ewx, p, dLdb, dLdw, pewx
+    cdef int t, r, m
 
     for t in range(1, max_iters):
         for r in range(N):
             wx = 0.0
             for m in range(M):
-                wx += X[r,m] * theta[m]
+                x = X[r,m]
+                if x > 0:
+                    wx += x * theta[m]
 
             ewx = exp(-wx)
             b2ewx = (b * b) + ewx
@@ -89,9 +91,11 @@ def modified_logistic_regression(
             dLdb = -2 * p * b
             b = b + (lambda_ * dLdb)
 
+            pewx = p * ewx
             for m in range(M):
-                dLdw = (p * ewx) * X[r,m]
-                theta[m] += (lambda_ * dLdw)
-
+                x = X[r,m]
+                if x > 0:
+                    dLdw = pewx * x 
+                    theta[m] += (lambda_ * dLdw)
     return b
 
