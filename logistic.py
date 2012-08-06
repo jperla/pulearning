@@ -38,7 +38,7 @@ def prepend_and_vars(X):
     return X, theta, N, M
 
 alpha = 0.1
-max_iters = 1000
+max_iters = 100
 
 def prepend_column_of_ones(X):
     """Accepts data array of points (NxD).
@@ -52,11 +52,10 @@ def fast_modified_logistic_gradient_descent(X, S):
     X, theta, N, M = prepend_and_vars(X)
 
     alpha = 0.01
-    max_iters = 100
     l = (alpha / max_iters)
     S = np.array(S, dtype=float)
     
-    b = clogistic.logistic_regression(theta, X, y, N, M, max_iters, l)
+    b = clogistic.modified_logistic_regression(theta, X, S, N, M, max_iters, l)
 
     return theta, b
 
@@ -156,7 +155,7 @@ def logistic_gradient_descent(X, y):
     return theta
 
 def logistic_sigmoid(v, normalizer=0.0):
-    """Returns 1 / (1 + e^(-v))"""
+    """Returns 1 / (1 + n + e^(-v))"""
     return 1.0 / (1 + normalizer + np.exp(-v))
 
 def generate_random_points(N, center=np.array([0,0]), scale=np.array([1,1])):
@@ -260,9 +259,6 @@ def sample_positive(c, pos, neg):
     unlabeled = np.vstack([remaining, neg])
     assert pos_sample.shape[1] == unlabeled.shape[1]
 
-    # shuffle to make it more random
-    np.random.shuffle(unlabeled)
-
     return pos_sample, unlabeled
 
 def logistic_regression_from_pos_neg(pos, neg):
@@ -288,8 +284,19 @@ def calculate_estimators(pos_sample, unlabeled,
     y = np.hstack([np.array([1] * len(pos_sample)),
                    np.array([0] * len(unlabeled)),])
 
+    # shuffle data so that it's nice and random
+    total = np.hstack([X, y.reshape(y.shape[0], 1)])
+    np.random.shuffle(total)
+    X = total[:,:-1]
+    y = total[:,-1]
+
+    print 'starting LR...'
     thetaR = fast_logistic_gradient_descent(X, y)
+    print 'done LR...'
+    print 'starting modified LR...'
     thetaMR, b = fast_modified_logistic_gradient_descent(X, y)
+    print 'done modified LR...'
+
     '''
     thetaR = logistic_gradient_descent(X, y)
     thetaMR, b = modified_logistic_gradient_descent(X, y)

@@ -34,6 +34,8 @@ npy_filenames = 'pos', 'neg', 'test_pos'
 if __name__=='__main__':
     pos, neg, test_pos = (np.load(os.path.join(folder, 'data.%s.swissprot.npy' % d)) for d in npy_filenames)
 
+    print 'read data...'
+
     # set up data
 
     table = []
@@ -51,6 +53,8 @@ if __name__=='__main__':
         # create validation set the same way
         u = np.vstack([v_neg, v_test_pos])
         v_p, v_u = logistic.sample_positive(cp, v_pos, u)
+
+        print 'set up data...'
 
         estimators = logistic.calculate_estimators(pos_sample, unlabeled, v_p, v_u)
 
