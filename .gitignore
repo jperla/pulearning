@@ -2,6 +2,10 @@
 *.json
 
 proteindata/*
+*.DS_Store
+*.png
+
+jsondata
 
 # vim
 *.swp

@@ -283,9 +283,11 @@ def logistic_regression_from_pos_neg(pos, neg):
     return theta
 
 def calculate_estimators(pos_sample, unlabeled, 
-                         validation_pos_sample, validation_unlabeled):
+                         validation_pos_sample, validation_unlabeled,
+                         max_iter=100):
     """Accepts Positive samples and unlabeled sets.
             Also accepts validation set equivalents.
+            Also accepts maximum number of iterations for regression.
        Returns 5-tuple of estimators, (e1, e2, e3, e1_hat, e4_hat)
             according to the paper.
     """
@@ -300,10 +302,10 @@ def calculate_estimators(pos_sample, unlabeled,
     y = total[:,-1]
 
     print 'starting LR...'
-    thetaR = fast_logistic_gradient_descent(X, y)
+    thetaR = fast_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done LR...'
     print 'starting modified LR...'
-    thetaMR, b = fast_modified_logistic_gradient_descent(X, y)
+    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done modified LR...'
 
     '''
@@ -354,7 +356,7 @@ if __name__ == '__main__':
                 #v_p, v_u = d(num_points, pp)
 
                 estimators = calculate_estimators(pos_sample, unlabeled,
-                                                  v_p, v_u)
+                                                  v_p, v_u, max_iter=1000)
 
                 t = (pp, d.func_name, c,) + estimators
                 print t
@@ -362,37 +364,8 @@ if __name__ == '__main__':
 
                 #e1, e2, e3, e1_hat, e4_hat = estimators
                 
-    with open('table.json', 'w') as f:
-        import json
-        f.write(json.dumps(table))
+    # save the table for graphing
+    import jsondata
+    jsondata.save('table.json', table)
         
-    '''
-    pos, neg = generate_mostly_separable(num_points, pp)
-    pos, neg = generate_complete_overlap(num_points, pp)
-    pos, neg = generate_some_overlap(num_points, pp)
-    pos, neg = generate_well_separable(num_points, pp)
-
-    graph_pos_neg(pos, neg)
-    graph_pos_neg(pos_sample, unlabeled)
-
-    theta = logistic_regression_from_pos_neg(pos, neg)
-
-    data = generate_random_points(10000,
-                                  center=np.array([2,2]), 
-                                  scale=np.array([10,10]))
-
-
-    labelsR = label_data(data, thetaR, binarize=True)
-    labelsMR = label_data(data, thetaMR, (b*b), binarize=True)
-
-    print 'e1', e1
-    print 'e2', e2
-    print 'e3', e3
-    print 'e1_hat', e1_hat
-    print 'e4_hat', e4_hat
-
-    # visually test that this works
-    graph_labeled_data(data, labelsR)
-    graph_labeled_data(data, labelsMR)
-    '''
 
