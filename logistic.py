@@ -2,7 +2,6 @@
 
 import numpy as np
 
-import pyximport; pyximport.install()
 import clogistic
 
 def label_data(data, theta, normalizer=0.0, binarize=True):
