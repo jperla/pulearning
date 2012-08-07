@@ -11,6 +11,7 @@ ctypedef np.double_t DTYPE_t
 cdef inline double exp(double v): return (2.71828182845904523536 ** v)
 cdef inline double sigmoid(double v): return 1.0 / (1.0 + exp(-v))
 
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
