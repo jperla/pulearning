@@ -51,6 +51,44 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
+                               np.ndarray[DTYPE_t, ndim=1] X not None, 
+                               np.ndarray[DTYPE_t, ndim=1] y not None, 
+                               int N, 
+                               int M,
+                               int max_iter, 
+                               double lambda_, 
+                               ):
+    """Cython version of stochastic gradient descent of 
+        logistic regression
+
+        Accepts parameters theta which will be modified in place.
+        Accepts max_iter number of times to loop.
+        Accepts lambda_ learning rate double.
+        Accepts Xi,Xc which is a sparse array, of length N
+            and an array y which is an (N,1) aray and
+            where N is the number of rows, and 
+                  M is dimensionality of data.
+    """
+    cdef double wx, hx, z, x
+    cdef int t, r, m
+    for t in range(1, max_iter + 1):
+        for r in range(N):
+            wx = 0.0
+            for m in range(M):
+                x = X[r,m]
+                if x > 0:
+                    wx += x * theta[m]
+            hx = sigmoid(wx)
+            z = lambda_ * (y[r] - hx)
+            for m in range(M):
+                x = X[r,m]
+                if x > 0:
+                    theta[m] += z * x
+    return theta
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
 def modified_logistic_regression(
                         np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         np.ndarray[DTYPE_t, ndim=2] X not None, 

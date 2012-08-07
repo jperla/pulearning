@@ -1,9 +1,18 @@
 #data
 *.json
 
+# data
 proteindata/*
+
+#editor?
 *.DS_Store
+
+#graphs
 *.png
+
+# compiled files
+clogistic.c
+clogistic.so
 
 jsondata
 
