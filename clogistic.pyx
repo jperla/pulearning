@@ -5,11 +5,43 @@ import numpy as np
 cimport numpy as np
 cimport cython
 
+import sparse
+
 DTYPE = np.double
 ctypedef np.double_t DTYPE_t
 
 cdef inline double exp(double v): return (2.71828182845904523536 ** v)
 cdef inline double sigmoid(double v): return 1.0 / (1.0 + exp(-v))
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
+                        tuple sparseX, 
+                        np.ndarray[DTYPE_t, ndim=1] y not None, 
+                        int N, 
+                        int M,
+                        int max_iter, 
+                        double lambda_, 
+                        ):
+    """Same as non-sparse but uses a faster sparse matrix.
+    """
+    cdef double wx, hx, z, x
+    cdef int t, r, m
+    for t in range(1, max_iter + 1):
+        for r in range(N):
+            wx = 0.0
+            for m in range(M):
+                x = X[r,m]
+                if x > 0:
+                    wx += x * theta[m]
+            hx = sigmoid(wx)
+            z = lambda_ * (y[r] - hx)
+            for m in range(M):
+                x = X[r,m]
+                if x > 0:
+                    theta[m] += z * x
+    return theta
 
 
 @cython.boundscheck(False)

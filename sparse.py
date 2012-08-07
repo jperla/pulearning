@@ -20,6 +20,11 @@ def is_sparse_matrix(matrix):
         raise Exception('Invalid matrix: neither sparse nor 2-tuple dense')
 
 
+def matrix_from_dense(a):
+    """Accepts dense matrix.
+        Returns sparse 2-tuple matrix.
+    """
+    return matrix_from_list_of_dicts(list_of_dicts_from_dense(a))
 
 def matrix_from_list_of_dicts(data):
         """Accepts list of dictionaries id:value.
