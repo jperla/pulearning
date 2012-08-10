@@ -1,6 +1,8 @@
 import os
 
 import numpy as np
+import sklearn.decomposition
+import sklearn.preprocessing
 
 import logistic
 
@@ -23,6 +25,24 @@ def read_sparse(filename, max_key):
                     for l in lines[1:]]
         return np.array([array_from_dict(d, max_key) for d in ds])
 
+def normalize_pu_nonnegative_data(pos_sample, unlabeled, v_p, v_u):
+    """Same as above but works for non-negative data
+    """
+    d = np.vstack([pos_sample, unlabeled])
+
+    # decorrelater = sklearn.decomposition.PCA(whiten=False)
+    decorrelater = sklearn.decomposition.NMF()
+    #decorrelater.fit(d)
+
+    transformer = sklearn.preprocessing.Scaler()
+    transformer.fit(d)
+
+    #fixer = lambda d: transformer.transform(decorrelater.transform(d))
+    fixer = lambda d: transformer.transform(d)
+
+    return ((fixer(pos_sample), fixer(unlabeled), fixer(v_p), fixer(v_u)), 
+             (decorrelater, transformer, fixer))
+
 
 # read in data
 folder = 'proteindata'
@@ -41,10 +61,10 @@ if __name__=='__main__':
     table = []
     for cp in [1.0, 0.5, 0.1, 0.7, 0.6, 0.4, 0.3, 0.2, 0.9, 0.8]:
         # split out the validation set separately
-        split_half = lambda a: logistic.sample_split(a, len(a) / 2)
-        half_pos, v_pos = split_half(pos)
-        half_neg, v_neg = split_half(neg)
-        half_test_pos, v_test_pos = split_half(test_pos)
+        split = lambda a: logistic.sample_split(a, int(0.2 * len(a)))
+        v_pos, half_pos = split(pos)
+        v_neg, half_neg = split(neg)
+        v_test_pos, half_test_pos = split(test_pos)
 
         # figure out the subset to sample (c)
         u = np.vstack([half_neg, half_test_pos])
@@ -56,7 +76,10 @@ if __name__=='__main__':
 
         print 'set up data...'
 
-        estimators = logistic.calculate_estimators(pos_sample, unlabeled, v_p, v_u)
+        data = (pos_sample, unlabeled, v_p, v_u)
+        data, fixers = normalize_pu_nonnegative_data(*data)
+        print 'normalized...'
+        estimators = logistic.calculate_estimators(*data, max_iter=100)
 
         t = (cp, 
          len(half_pos), len(half_neg), len(half_test_pos), 

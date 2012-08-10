@@ -46,28 +46,30 @@ def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
 def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         np.ndarray[DTYPE_t, ndim=2] X not None, 
                         np.ndarray[DTYPE_t, ndim=1] y not None, 
                         int N, 
                         int M,
                         int max_iter, 
-                        double lambda_, 
+                        double alpha, 
                         ):
     """Cython version of stochastic gradient descent of 
         logistic regression
 
         Accepts parameters theta which will be modified in place.
         Accepts max_iter number of times to loop.
-        Accepts lambda_ learning rate double.
+        Accepts alpha learning rate double.
         Accepts X which is a numpy array, an (N,M) array
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
                   M is dimensionality of data.
     """
-    cdef double wx, hx, z, x
+    cdef double wx, hx, z, x, lambda_
     cdef int t, r, m
-    for t in range(1, max_iter + 1):
+    for t in range(0, max_iter):
+        lambda_ = alpha / (1.0 + t)
         for r in range(N):
             wx = 0.0
             for m in range(M):
@@ -84,28 +86,30 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
 def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
                                np.ndarray[DTYPE_t, ndim=1] X not None, 
                                np.ndarray[DTYPE_t, ndim=1] y not None, 
                                int N, 
                                int M,
                                int max_iter, 
-                               double lambda_, 
+                               double alpha, 
                                ):
     """Cython version of stochastic gradient descent of 
         logistic regression
 
         Accepts parameters theta which will be modified in place.
         Accepts max_iter number of times to loop.
-        Accepts lambda_ learning rate double.
+        Accepts alpha learning rate double.
         Accepts Xi,Xc which is a sparse array, of length N
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
                   M is dimensionality of data.
     """
-    cdef double wx, hx, z, x
+    cdef double wx, hx, z, x, lambda_
     cdef int t, r, m
-    for t in range(1, max_iter + 1):
+    for t in range(0, max_iter):
+        lambda_ = alpha / (1.0 + t)
         for r in range(N):
             wx = 0.0
             for m in range(M):
@@ -122,6 +126,7 @@ def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
 def modified_logistic_regression(
                         np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         np.ndarray[DTYPE_t, ndim=2] X not None, 
@@ -129,7 +134,7 @@ def modified_logistic_regression(
                         int N, 
                         int M,
                         int max_iter,
-                        double lambda_, 
+                        double alpha, 
                         double b,
                        ):
     """Cython version of stochastic gradient descent of 
@@ -137,16 +142,18 @@ def modified_logistic_regression(
 
         Accepts parameters theta which will be modified in place.
         Accepts max_iter number of times to loop.
-        Accepts lambda_ learning rate double.
+        Accepts alpha learning rate double.
         Accepts X which is a numpy array, an (N,M) array
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
                   M is dimensionality of data.
     """
     cdef double x, s, wx, ewx, b2ewx, p, dLdb, dLdw, pewx
+    cdef double lambda_
     cdef int t, r, m
 
-    for t in range(1, max_iter+1):
+    for t in range(0, max_iter):
+        lambda_ = alpha / (1.0 + <double>t)
         for r in range(N):
             wx = 0.0
             for m in range(M):
@@ -160,7 +167,7 @@ def modified_logistic_regression(
             p = ((S[r] - 1.0) / b2ewx) + (1.0 / (1.0 + b2ewx))
 
             dLdb = -2 * p * b
-            b = b + (lambda_ * dLdb)
+            b = b + ((lambda_) * dLdb)
 
             pewx = p * ewx
             for m in range(M):
