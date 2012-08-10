@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 import numpy as np
+import sklearn
+import sklearn.preprocessing
+import sklearn.decomposition
 
 import clogistic
 
@@ -328,6 +331,49 @@ def calculate_estimators(pos_sample, unlabeled,
 
     return e1, e2, e3, e1_hat, e4_hat
 
+def normalize_pu_data(pos_sample, unlabeled, v_p, v_u):
+    """Accepts positive data, unlabeled, and validation arrays.
+        1. Removes the mean (recenters to zero). 
+        2. Decorrelates Input (PCA, ICA, or NNMF)
+        3. Sets variance back to 1.
+
+        Returns a 2-tuple of a 4-tuple of the cleaned up data,
+                         and a 3-tuple of 2 objects used to clean, 
+                                                    plus fixer func.
+    """
+    d = np.vstack([pos_sample, unlabeled])
+
+    recenterer = sklearn.preprocessing.Scaler(with_std=False)
+    d = recenterer.fit_transform(d)
+
+    # does not work with ICA for some reason
+    # decorrelater = sklearn.decomposition.FastICA(whiten=True)
+    decorrelater = sklearn.decomposition.PCA(whiten=True)
+    decorrelater.fit(d)
+
+    fixer = lambda d: decorrelater.transform(recenterer.transform(d))
+
+    return ((fixer(pos_sample), fixer(unlabeled), fixer(v_p), fixer(v_u)), 
+             (recenterer, decorrelater, fixer))
+
+def normalize_pu_nonnegative_data(pos_sample, unlabeled, v_p, v_u):
+    """Same as above but works for non-negative data
+    """
+    d = np.vstack([pos_sample, unlabeled])
+
+    # decorrelater = sklearn.decomposition.PCA(whiten=False)
+    decorrelater = sklearn.decomposition.NMF()
+    decorrelater.fit(d)
+
+    transformer = sklearn.preprocessing.Scaler()
+    d = transformer.fit_transform(d)
+
+    fixer = lambda d: transformer.transform(decorrelater.transform(d))
+
+    return ((fixer(pos_sample), fixer(unlabeled), fixer(v_p), fixer(v_u)), 
+             (decorrelater, transformer, fixer))
+
+
 if __name__ == '__main__':
     pps = [0.5, 0.6, 0.7, 0.8, 0.9, 0.1, 0.2, 0.3, 0.4,]
     cs = [0.1, 0.3, 0.5, 0.7, 0.9,]
@@ -354,8 +400,9 @@ if __name__ == '__main__':
                 v_p, v_u = sample_positive(c, *d(num_points, pp))
                 #v_p, v_u = d(num_points, pp)
 
-                estimators = calculate_estimators(pos_sample, unlabeled,
-                                                  v_p, v_u, max_iter=1000)
+                data, fixers = normalize_pu_data(pos_sample, unlabeled, v_p, v_u)
+
+                estimators = calculate_estimators(*data, max_iter=100)
 
                 t = (pp, d.func_name, c,) + estimators
                 print t
