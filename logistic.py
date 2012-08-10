@@ -56,14 +56,14 @@ def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alph
     if max_iter == 0:
         return theta, b
 
-    l = (alpha / max(MAX_ITER, max_iter))
+    l = alpha# / max(MAX_ITER, max_iter))
     S = np.array(S, dtype=float)
     
     b = clogistic.modified_logistic_regression(theta, X, S, N, M, max_iter, l, b)
 
     return theta, b
 
-def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
+def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA, i=0):
     """Accepts same as logistic regression.
         Returns 2-tuple of weights theta, and also upper bound variable b.
         Returns (theta, b).
@@ -76,11 +76,11 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
     if max_iter == 0:
         return theta, b
 
-    l = (alpha / max(MAX_ITER, max_iter))
     assert len(S) == N
 
     #TODO: jperla: can this be faster?
-    for t in xrange(1, max_iter + 1):
+    for t in xrange(i, max_iter):
+        l = alpha / (1.0 + t)
         for i in xrange(N):
             x = X[i,:]
             s = S[i]
@@ -100,7 +100,7 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
             #assert isinstance(dLdb, float)
 
             theta = theta + (l * dLdw)
-            b = b + (l * dLdb)
+            b = b + ((l * 0.1) * dLdb)
 
         print t, (1.0 / (1.0 + (b * b)))
         if t % 10 == 0:
@@ -116,14 +116,14 @@ def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
     if max_iter == 0:
         return theta
 
-    l = (alpha / max(MAX_ITER, max_iter))
+    l = alpha
     y = np.array(y, dtype=np.float)
 
     clogistic.logistic_regression(theta, X, y, N, M, max_iter, l)
 
     return theta
 
-def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
+def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA, i=0):
     """Accepts data X, an NxM matrix.
         Accepts y, an Nx1 array of binary values (0 or 1)
         Returns an Mx1 array of logistic regression parameters.
@@ -136,8 +136,8 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
     if max_iter == 0:
         return theta
 
-    l = (alpha / max(MAX_ITER, max_iter))
-    for t in xrange(1, max_iter + 1):
+    for t in xrange(i, max_iter):
+        l = alpha / (1.0 + t)
         for r in xrange(N):
             hx = logistic_sigmoid(np.dot(X[r], theta))
             #assert isinstance(hx, float)
@@ -167,7 +167,7 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
 
 def logistic_sigmoid(v, normalizer=0.0):
     """Returns 1 / (1 + n + e^(-v))"""
-    return 1.0 / (1 + normalizer + np.exp(-v))
+    return 1.0 / (1.0 + normalizer + np.exp(-v))
 
 def generate_random_points(N, center=np.array([0,0]), scale=np.array([1,1])):
     """Accepts an integer N of number of points to generate.
@@ -356,22 +356,6 @@ def normalize_pu_data(pos_sample, unlabeled, v_p, v_u):
     return ((fixer(pos_sample), fixer(unlabeled), fixer(v_p), fixer(v_u)), 
              (recenterer, decorrelater, fixer))
 
-def normalize_pu_nonnegative_data(pos_sample, unlabeled, v_p, v_u):
-    """Same as above but works for non-negative data
-    """
-    d = np.vstack([pos_sample, unlabeled])
-
-    # decorrelater = sklearn.decomposition.PCA(whiten=False)
-    decorrelater = sklearn.decomposition.NMF()
-    decorrelater.fit(d)
-
-    transformer = sklearn.preprocessing.Scaler()
-    d = transformer.fit_transform(d)
-
-    fixer = lambda d: transformer.transform(decorrelater.transform(d))
-
-    return ((fixer(pos_sample), fixer(unlabeled), fixer(v_p), fixer(v_u)), 
-             (decorrelater, transformer, fixer))
 
 
 if __name__ == '__main__':

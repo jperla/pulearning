@@ -22,6 +22,7 @@ if __name__ == '__main__':
 
     print cs
     for c in cs:
+        vf = 0.2
     #for vf in validation_fractions:
 
         def gen_sample(p, n):
