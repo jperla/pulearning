@@ -16,6 +16,7 @@ cdef inline double sigmoid(double v): return 1.0 / (1.0 + exp(-v))
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
 def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         tuple sparseX, 
                         np.ndarray[DTYPE_t, ndim=1] y not None, 
@@ -26,21 +27,38 @@ def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
                         ):
     """Same as non-sparse but uses a faster sparse matrix.
     """
+    cdef np.ndarray[DTYPE_t, ndim=1] Xdata
+    cdef np.ndarray[int, ndim=1] counts
+    Xdata, counts = sparseX
+
     cdef double wx, hx, z, x
-    cdef int t, r, m
-    for t in range(1, max_iter + 1):
+    cdef long t, r, m, c
+    cdef double value
+    cdef int param
+    cdef long index, rowindex
+
+    index = 0
+    for t in range(0, max_iter):
         for r in range(N):
             wx = 0.0
-            for m in range(M):
-                x = X[r,m]
-                if x > 0:
-                    wx += x * theta[m]
+            rowindex = index
+            c = counts[r]
+            for m in range(c):
+                assert r == Xdata[index], 'triplets always have row first'
+                param = int(Xdata[index + 1])
+                value = Xdata[index + 2]
+                wx += value * theta[param]
+                index += 3
             hx = sigmoid(wx)
             z = lambda_ * (y[r] - hx)
-            for m in range(M):
-                x = X[r,m]
-                if x > 0:
-                    theta[m] += z * x
+
+            index = rowindex
+            for m in range(c):
+                assert r == Xdata[index], 'triplets always have row first'
+                param = int(Xdata[index + 1])
+                value = Xdata[index + 2]
+                theta[param] += z * value
+                index += 3
     return theta
 
 
