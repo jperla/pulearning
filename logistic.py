@@ -81,6 +81,32 @@ def switch_array(array, dense_func, sparse_func):
     else:
         raise Exception("Unknown array datatype")
     
+def lbfgs_modified_logistic_regression(X, y, b=1.0):
+    """Same as modified LR, but solved using lbfgs."""
+    X, theta, N, M = prepend_and_vars(X)
+    def f(w, g, X, y):
+        """Accepts x, and g.  Returns value at x, and gradient at g.
+        """
+        b = w[0]
+        theta = w[1:]
+        value = np.sum(np.abs(y - (1.0 / (1.0 + (b ** 2) + X.dot(theta)))))
+        # now fill in the g
+
+        ewx = np.exp(-X.dot(theta))
+        b2ewx = (b * b) + ewx
+        p = ((y - 1.0) / b2ewx) + (1.0 / (1.0 + b2ewx))
+        
+        dLdw = (p * ewx).reshape((X.shape[0], 1)) * X
+
+        w[0] = np.sum(-2 * b * p)
+        w[1:] = np.sum(dLdw, axis=0)
+        return value
+    import lbfgs
+    w = np.hstack([np.array([b,]), theta])
+    answer = lbfgs.fmin_lbfgs(f, w, args=(X, y,))
+    theta, b = answer[1:], answer[0]
+    return theta, b
+
 
 def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
     """Same but uses Cython."""
@@ -334,7 +360,9 @@ def calculate_estimators(pos_sample, unlabeled,
     thetaR = fast_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done LR...'
     print 'starting modified LR...'
-    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
+    #thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
+    thetaMR, b = lbfgs_modified_logistic_regression(X, y)
+
     print 'done modified LR...'
 
     s = validation_pos_sample
