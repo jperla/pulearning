@@ -27,11 +27,11 @@ if __name__=='__main__':
         half_test_pos, v_test_pos = split_half(test_pos)
 
         # figure out the subset to sample (c)
-        u = np.vstack([half_neg, half_test_pos])
+        u = logistic.vstack([half_neg, half_test_pos])
         pos_sample, unlabeled = logistic.sample_positive(cp, half_pos, u)
 
         # create validation set the same way
-        u = np.vstack([v_neg, v_test_pos])
+        u = logistic.vstack([v_neg, v_test_pos])
         v_p, v_u = logistic.sample_positive(cp, v_pos, u)
 
         print 'set up data...'

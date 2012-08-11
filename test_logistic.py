@@ -67,8 +67,8 @@ def test_end_to_end_logistic_regression():
 
     #graph_pos_neg(pos, neg)
 
-    X = np.vstack([pos, neg])
-    y = np.hstack([np.array([1] * len(pos)), 
+    X = logistic.vstack([pos, neg])
+    y = logistic.hstack([np.array([1] * len(pos)), 
                    np.array([0] * len(neg)),])
     data = logistic.generate_random_points(100, 
                                            center=np.array([2,2]), 

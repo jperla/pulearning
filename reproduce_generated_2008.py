@@ -34,7 +34,7 @@ if __name__ == '__main__':
                 """Accepts an (N,2) array, adds 2 more columns
                     which are first col squared, second col squared.
                 """
-                return np.vstack([a.T, a[:,0]**2, a[:,1]**2]).T
+                return logistic.vstack([a.T, a[:,0]**2, a[:,1]**2]).T
             pos = gaussian(mean_pos, cov_pos, p)
             pos = add_x2_y2(pos)
             neg = gaussian(mean_neg, cov_neg, n)
