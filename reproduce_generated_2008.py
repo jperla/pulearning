@@ -46,7 +46,7 @@ if __name__ == '__main__':
         v_p, v_u = gen_sample(int(vf * n_pos), int(vf * n_neg))
 
         data = (pos_sample, unlabeled, v_p, v_u)
-        data, fixers = logistic.normalize_pu_data(*data)
+        #data, fixers = logistic.normalize_pu_data(*data)
         estimators = logistic.calculate_estimators(*data, max_iter=1000)
 
         t = ('vf:', vf, 'c:', c, ) + estimators

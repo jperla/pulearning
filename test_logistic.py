@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 from functools import partial
 
+import scipy
 import numpy as np
 
 import logistic
 
 def test_manual_standard_logistic_regression():
-    X = np.array([[0, 1, 1],
-                  [1, 0, 0],
-                  [0, 0, 1]])
+    X = np.array([[0, 4, 1],
+                  [3, 0, 0],
+                  [0, 0, 2]])
     y = np.array([0, 1, 0])
+    Xsparse = scipy.sparse.csr_matrix(X)
 
 
     for i in xrange(40):
@@ -19,6 +21,10 @@ def test_manual_standard_logistic_regression():
         thetaM, b = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
         assert b == 0.0
         thetaMFast, b = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
+        assert b == 0.0
+
+        thetaSparse = logistic.fast_logistic_gradient_descent(Xsparse, y, max_iter=i, alpha=0.1)
+        thetaMSparse, b = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=0.0, alpha=0.1)
         assert b == 0.0
 
         close = partial(np.allclose, rtol=0.01, atol=0.0001)
@@ -46,16 +52,20 @@ def test_manual_standard_logistic_regression():
         # and make sure that the modified version is a superset of normal one
         assert np.allclose(theta, thetaM)
         assert np.allclose(theta, thetaMFast)
+        assert np.allclose(theta, thetaSparse)
+        assert np.allclose(theta, thetaMSparse)
 
 
     for i in xrange(40):
         # make sure C version is same as other version
         thetaM, bM = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
         thetaMFast, bMFast = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
+        thetaMSparse, bMSparse = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=1.0, alpha=0.01)
 
         assert np.allclose(thetaM, thetaMFast)
+        assert np.allclose(thetaM, thetaMSparse)
         assert not np.allclose(thetaM + 0.001, thetaMFast)
-        assert bM == bMFast
+        assert bM == bMFast == bMSparse
 
         #TODO: jperla: hardcode some values in 
 
@@ -97,3 +107,4 @@ def test_end_to_end_logistic_regression():
 
     #TODO: jperla: test split_labeled_data()
     #graph_labeled_data(data, labels) 
+

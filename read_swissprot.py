@@ -55,16 +55,9 @@ if __name__=='__main__':
     sparse_pos = scipy.sparse.lil_matrix((len(pos), max_key), dtype=np.float)
     fill_sparse_matrix(pos, sparse_pos)
     sparse_neg = scipy.sparse.lil_matrix((len(neg), max_key), dtype=np.float)
-    try:
-        fill_sparse_matrix(neg, sparse_neg)
-    except:
-        import pdb; pdb.post_mortem()
+    fill_sparse_matrix(neg, sparse_neg)
     sparse_test_pos = scipy.sparse.lil_matrix((len(test_pos), max_key), dtype=np.float)
     fill_sparse_matrix(test_pos, sparse_test_pos)
-
-    sparse_pos = sparse_pos.tocsr()
-    sparse_neg = sparse_neg.tocsr()
-    sparse_test_pos = sparse_test_pos.tocsr()
 
     scipy.io.mmwrite(os.path.join(folder, 'data.swissprot.pos'), sparse_pos)
     scipy.io.mmwrite(os.path.join(folder, 'data.swissprot.neg'), sparse_neg)

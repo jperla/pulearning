@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import scipy.io
 import sklearn.decomposition
 import sklearn.preprocessing
@@ -35,7 +34,7 @@ max_key = 24081
 mtx_filenames = 'pos', 'neg', 'test_pos'
 
 if __name__=='__main__':
-    pos, neg, test_pos = (scipy.io.mmread(os.path.join(folder, 'data.%s.mtx' % d)) for d in mtx_filenames)
+    pos, neg, test_pos = (scipy.io.mmread(os.path.join(folder, 'data.swissprot.%s.mtx' % d)) for d in mtx_filenames)
 
     print 'read data...'
 
@@ -64,9 +63,9 @@ if __name__=='__main__':
         estimators = logistic.calculate_estimators(*data, max_iter=100)
 
         t = (cp, 
-         len(half_pos), len(half_neg), len(half_test_pos), 
+         half_pos.shape[0], half_neg.shape[0], half_test_pos.shape[0], 
          estimators,
-         float(int(len(half_pos) * cp)) / (len(half_test_pos) + len(half_pos)),
+         float(int(half_pos.shape[0] * cp)) / (half_test_pos.shape[0] + half_pos.shape[0]),
         )
         table.append(t)
 

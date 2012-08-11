@@ -13,14 +13,18 @@ def vstack(arrays):
     if all(isinstance(a, np.ndarray) for a in arrays):
         return np.vstack(arrays)
     else:
-        return scipy.sparse.vstack(arrays)
+        # remove empty arrays, since scipy has a problem with that
+        arrays = [a for a in arrays if a.shape[0] > 0 and a.shape[1] > 0]
+        return scipy.sparse.vstack(arrays, format=arrays[-1].getformat())
 
 def hstack(arrays):
     """Wrapper that switches between dense array stack and sparse."""
     if all(isinstance(a, np.ndarray) for a in arrays):
         return np.hstack(arrays)
     else:
-        return scipy.sparse.hstack(arrays)
+        # remove empty arrays, since scipy has a problem with that
+        arrays = [a for a in arrays if a.shape[0] > 0 and a.shape[1] > 0]
+        return scipy.sparse.hstack(arrays, format=arrays[-1].getformat())
 
 def label_data(data, theta, normalizer=0.0, binarize=True):
     """Accepts data array and theta parameters.
@@ -30,8 +34,9 @@ def label_data(data, theta, normalizer=0.0, binarize=True):
        Also accepts binarize boolean, 
             which rounds everything to 1 or 0 if Tru if True.
     """
-    data = prepend_column_of_ones(data)
-    s = logistic_sigmoid(np.dot(data, theta), normalizer)
+    #data = prepend_column_of_ones(data)
+    #s = logistic_sigmoid(np.dot(data, theta), normalizer)
+    s = logistic_sigmoid(data.dot(theta[1:]) + theta[0], normalizer)
     if binarize:
         s = np.array([(1 if a > 0.5 else 0) for a in s])
     return s
@@ -64,20 +69,28 @@ def prepend_column_of_ones(X):
     N,M = X.shape
     return hstack([np.ones((N,1)), X])
 
+def switch_array(array, dense_func, sparse_func):
+    """Accepts an array, and 2 functions (lambda maybe?) of what to do 
+        if the array is a dense or sparse function.
+       Returns the output of appropriate one
+    """
+    if isinstance(array, np.ndarray):
+        return dense_func()
+    elif isinstance(array, scipy.sparse.csr.csr_matrix):
+        return sparse_func()
+    else:
+        raise Exception("Unknown array datatype")
+    
+
 def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
     """Same but uses Cython."""
     X, theta, N, M = prepend_and_vars(X)
 
-    l = alpha# / max(MAX_ITER, max_iter))
     S = np.array(S, dtype=float)
     
-    # reduce repetition on switching sparse
-    if isinstance(X, scipy.sparse.csr.csr_matrix):
-        b = clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, max_iter, l, b)
-    elif isinstance(X, np.ndarray):
-        b = clogistic.modified_logistic_regression(theta, X, S, N, M, max_iter, l, b)
-    else:
-        raise Exception("Unknown array datatype")
+    b = switch_array(X,
+                lambda: clogistic.modified_logistic_regression(theta, X, S, N, M, alpha, max_iter, b),
+                lambda: clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, alpha, max_iter, b))
 
 
     return theta, b
@@ -92,7 +105,7 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
     """
     X, theta, N, M = prepend_and_vars(X)
 
-    assert len(S) == N
+    assert S.shape[0] == N
 
     #TODO: jperla: can this be faster?
     for t in xrange(i, max_iter):
@@ -129,13 +142,12 @@ def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
     """Computes same as below, but uses Cython module."""
     X, theta, N, M = prepend_and_vars(X)
     
-    l = alpha
     y = np.array(y, dtype=np.float)
 
     if isinstance(X, scipy.sparse.csr.csr_matrix):
-        clogistic.sparse_logistic_regression(theta, X, y, N, M, max_iter, l)
+        clogistic.sparse_logistic_regression(theta, X, y, N, M, alpha, max_iter)
     elif isinstance(X, np.ndarray):
-        clogistic.logistic_regression(theta, X, y, N, M, max_iter, l)
+        clogistic.logistic_regression(theta, X, y, N, M, alpha, max_iter)
     else:
         raise Exception("Unknown array datatype")
 
@@ -287,10 +299,7 @@ def sample_positive(c, pos, neg):
 
     #pos_sample, remaining = sklearn.cross_validation.train_test_split(pos, test_size=c)
     pos_sample, remaining = sample_split(pos, num_sample)
-    try:
-        unlabeled = vstack([remaining, neg])
-    except:
-        import pdb; pdb.post_mortem()
+    unlabeled = vstack([remaining, neg])
     assert pos_sample.shape[1] == unlabeled.shape[1]
 
     return pos_sample, unlabeled
@@ -302,8 +311,8 @@ def logistic_regression_from_pos_neg(pos, neg):
     """
     assert pos.shape[1] == neg.shape[1]
     X = vstack([pos, neg])
-    y = hstack([np.array([1] * len(pos)),
-                   np.array([0] * len(neg)),])
+    y = hstack([np.array([1] * pos.shape[0]),
+                   np.array([0] * neg.shape[0]),])
     theta = logistic_gradient_descent(X, y)
     return theta
 
@@ -317,29 +326,35 @@ def calculate_estimators(pos_sample, unlabeled,
             according to the paper.
     """
     X = vstack([pos_sample, unlabeled])
-    y = hstack([np.array([1] * len(pos_sample)),
-                   np.array([0] * len(unlabeled)),]).reshape((X.shape[0], 1))
+    y = hstack([np.array([1] * pos_sample.shape[0]),
+                np.array([0] * unlabeled.shape[0]),])
     X, y = sklearn.utils.shuffle(X, y)
 
     print 'starting LR...'
     thetaR = fast_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done LR...'
     print 'starting modified LR...'
-    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter)
+    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
     print 'done modified LR...'
 
     s = validation_pos_sample
     u = validation_unlabeled
 
+    print 'calculating estimators...'
+
     gR_s = label_data(s, thetaR, binarize=False)
     gR_V = label_data(vstack([s, u]), thetaR, binarize=False)
-    e1 = sum(gR_s) / float(len(s))
+    e1 = sum(gR_s) / float(s.shape[0])
     e2 = (sum(gR_s) / sum(gR_V))
     e3 = max(gR_V)
 
+    print 'mid done...'
+
     gMR_s = label_data(s, thetaMR, (b * b), binarize=False)
-    e1_hat = sum(gMR_s) / len(s)
+    e1_hat = sum(gMR_s) / s.shape[0]
     e4_hat = (1.0 / (1.0 + (b * b)))
+
+    print 'done calculating estimators...'
 
     return e1, e2, e3, e1_hat, e4_hat
 
@@ -396,7 +411,8 @@ if __name__ == '__main__':
                 v_p, v_u = sample_positive(c, *d(num_points, pp))
                 #v_p, v_u = d(num_points, pp)
 
-                data, fixers = normalize_pu_data(pos_sample, unlabeled, v_p, v_u)
+                data = (pos_sample, unlabeled, v_p, v_u)
+                #data, fixers = normalize_pu_data(*data)
 
                 estimators = calculate_estimators(*data, max_iter=100)
 
