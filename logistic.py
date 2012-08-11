@@ -129,7 +129,7 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
             #assert isinstance(dLdb, float)
 
             theta = theta + (l * dLdw)
-            b = b + ((l * 0.1) * dLdb)
+            b = b + ((l) * dLdb)
 
         print t, (1.0 / (1.0 + (b * b)))
         if t % 10 == 0:
