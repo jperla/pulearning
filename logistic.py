@@ -348,8 +348,10 @@ def calculate_estimators(pos_sample, unlabeled,
     """Accepts Positive samples and unlabeled sets.
             Also accepts validation set equivalents.
             Also accepts maximum number of iterations for regression.
-       Returns 5-tuple of estimators, (e1, e2, e3, e1_hat, e4_hat)
-            according to the paper.
+       Returns a 2-tuple of the learned parameters, and estimators.
+            First element is 3-tuple of learned LR params, modified LR, and b.
+            Second element is 5-tuple of estimators, 
+                    (e1, e2, e3, e1_hat, e4_hat) according to the paper.
     """
     X = vstack([pos_sample, unlabeled])
     y = hstack([np.array([1] * pos_sample.shape[0]),
@@ -360,8 +362,8 @@ def calculate_estimators(pos_sample, unlabeled,
     thetaR = fast_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done LR...'
     print 'starting modified LR...'
-    #thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
-    thetaMR, b = lbfgs_modified_logistic_regression(X, y)
+    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
+    #thetaMR, b = lbfgs_modified_logistic_regression(X, y)
 
     print 'done modified LR...'
 
@@ -384,7 +386,7 @@ def calculate_estimators(pos_sample, unlabeled,
 
     print 'done calculating estimators...'
 
-    return e1, e2, e3, e1_hat, e4_hat
+    return ((thetaR, thetaMR, b), (e1, e2, e3, e1_hat, e4_hat))
 
 def normalize_pu_data(pos_sample, unlabeled, v_p, v_u):
     """Accepts positive data, unlabeled, and validation arrays.
@@ -442,7 +444,7 @@ if __name__ == '__main__':
                 data = (pos_sample, unlabeled, v_p, v_u)
                 #data, fixers = normalize_pu_data(*data)
 
-                estimators = calculate_estimators(*data, max_iter=100)
+                _, estimators = calculate_estimators(*data, max_iter=100)
 
                 t = (pp, d.func_name, c,) + estimators
                 print t

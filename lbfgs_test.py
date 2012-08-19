@@ -47,7 +47,7 @@ if __name__ == '__main__':
 
         data = (pos_sample, unlabeled, v_p, v_u)
         #data, fixers = logistic.normalize_pu_data(*data)
-        estimators = logistic.calculate_estimators(*data, max_iter=1000)
+        _, estimators = logistic.calculate_estimators(*data, max_iter=1000)
 
         t = ('vf:', vf, 'c:', c, ) + estimators
         print t

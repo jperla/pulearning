@@ -60,7 +60,7 @@ if __name__=='__main__':
         #data, fixers = normalize_pu_nonnegative_data(*data)
         print 'not-normalized...'
         #print 'normalized...'
-        estimators = logistic.calculate_estimators(*data, max_iter=100)
+        _, estimators = logistic.calculate_estimators(*data, max_iter=100)
 
         t = (cp, 
          half_pos.shape[0], half_neg.shape[0], half_test_pos.shape[0], 

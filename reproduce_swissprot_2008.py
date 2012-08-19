@@ -36,7 +36,7 @@ if __name__=='__main__':
 
         print 'set up data...'
 
-        estimators = logistic.calculate_estimators(pos_sample, unlabeled, v_p, v_u)
+        _, estimators = logistic.calculate_estimators(pos_sample, unlabeled, v_p, v_u)
 
         t = (cp, 
          len(half_pos), len(half_neg), len(half_test_pos), 
