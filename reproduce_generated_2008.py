@@ -11,11 +11,11 @@ if __name__ == '__main__':
 
     n_pos = 500
     mean_pos = [2, 2]
-    cov_pos = [[2, 1], [1, .5]]
+    cov_pos = [[1, 1], [1, 4]]
 
     n_neg = 1000
     mean_neg = [-2, -3]
-    cov_neg = [[2, 1], [1, 2]]
+    cov_neg = [[4, -1], [-1, 4]]
 
     gaussian = np.random.multivariate_normal
 
