@@ -3,6 +3,10 @@ import numpy as np
 DTYPE = np.float
 
 def is_sparse_matrix(matrix):
+    """Accepts an input. 
+        Returns False if it is a normal dense numpy array.
+        Returns True if it is a 2-tuple of numpy arrays where the ... what?
+    """
     if isinstance(matrix, np.ndarray):
         return False
     elif (isinstance(matrix, tuple) and 

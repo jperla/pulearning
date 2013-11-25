@@ -29,19 +29,18 @@ def hstack(arrays):
 def label_data(data, theta, normalizer=0.0, binarize=True):
     """Accepts data array and theta parameters.
         data is of size (NxD).
-        theta is of size (Dx1)
+        theta is of size ((D+1)x1) (theta is 1 bigger for the constant)
        Returns logistic sigmoid of all points, a (Nx1) array.
        Also accepts binarize boolean, 
-            which rounds everything to 1 or 0 if Tru if True.
+            which rounds everything to 1 or 0 if True.
     """
+    assert((data.shape[1] + 1) == theta.shape[0])
     #data = prepend_column_of_ones(data)
     #s = logistic_sigmoid(np.dot(data, theta), normalizer)
     s = logistic_sigmoid(data.dot(theta[1:]) + theta[0], normalizer)
     if binarize:
         s = np.array([(1 if a > 0.5 else 0) for a in s])
     return s
-
-
 
 
 ###########################################
@@ -162,10 +161,8 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
             print t, (1.0 / (1.0 + (b * b)))
     return theta, b
 
-
-
 def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
-    """Computes same as below, but uses Cython module."""
+    """Computes same as logistic_gradient_descent(), but uses Cython module."""
     X, theta, N, M = prepend_and_vars(X)
     
     y = np.array(y, dtype=np.float)

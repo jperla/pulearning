@@ -69,9 +69,6 @@ def test_manual_standard_logistic_regression():
 
         #TODO: jperla: hardcode some values in 
 
-
-
-
 def test_end_to_end_logistic_regression():
     pos, neg = logistic.generate_well_separable(100, 0.50)
 

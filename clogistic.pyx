@@ -1,5 +1,7 @@
 from __future__ import division
 
+import functools
+
 import numpy as np
 
 cimport numpy as np
@@ -17,6 +19,7 @@ def wrap_fast_cython(f):
     @cython.boundscheck(False)
     @cython.wraparound(False)
     @cython.cdivision(True)
+    @functools.wraps(f)
     def wrapped(*args, **kwargs):
         return f(*args, **kwargs)
     return wrapped

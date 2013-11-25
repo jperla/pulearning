@@ -1,5 +1,6 @@
 import os
 
+import numpy
 import scipy.io
 import sklearn.decomposition
 import sklearn.preprocessing
@@ -35,6 +36,9 @@ mtx_filenames = 'pos', 'neg', 'test_pos'
 
 if __name__=='__main__':
     pos, neg, test_pos = (scipy.io.mmread(os.path.join(folder, 'data.swissprot.%s.mtx' % d)) for d in mtx_filenames)
+    numpy.save(os.path.join(folder, 'data.pos.swissprot.npy'), pos.todense())
+    numpy.save(os.path.join(folder, 'data.neg.swissprot.npy'), neg.todense())
+    numpy.save(os.path.join(folder, 'data.test_pos.swissprot.npy'), test_pos.todense())
 
     print 'read data...'
 
