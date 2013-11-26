@@ -81,9 +81,6 @@ if __name__=='__main__':
         regression_labels = logistic.label_data(test_set, thetaR, binarize=False)
         modified_regression_labels = logistic.label_data(test_set, thetaMR, (b * b), binarize=False)
 
-        print regression_labels
-        print modified_regression_labels
-
         # Compute ROC curve and area the curve
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(test_labels, baseline_labels)
         roc_auc = sklearn.metrics.auc(fpr, tpr)
@@ -100,6 +97,7 @@ if __name__=='__main__':
         print("Area under the ROC curve for modified logistic regression: %f" % roc_auc)
 
         # Plot ROC curve
+        '''
         import pylab as pl
         pl.clf()
         pl.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % roc_auc)
@@ -111,4 +109,5 @@ if __name__=='__main__':
         pl.title('Receiver operating characteristic example')
         pl.legend(loc="lower right")
         pl.show()
+        '''
 
