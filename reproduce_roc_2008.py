@@ -113,30 +113,30 @@ if __name__=='__main__':
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(baseline_labels)
-        roc_curves.append((fpr, tpr, roc_auc, 'LR true labels'))
+        roc_curves.append(('LR true labels', roc_auc, fpr, tpr, 'r-'))
         print("Area under the ROC curve for logistic regression on totally labeled dataset: %f" % roc_auc)
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(regression_labels)
-        roc_curves.append((fpr, tpr, roc_auc, 'LR'))
+        roc_curves.append(('LR', roc_auc, fpr, tpr, 'r--'))
         print("Area under the ROC curve for standard logistic regression: %f" % roc_auc)
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(modified_regression_labels)
-        roc_curves.append((fpr, tpr, roc_auc, 'Modified LR'))
+        roc_curves.append(('Modified LR', roc_auc, fpr, tpr, 'r-.'))
         print("Area under the ROC curve for modified logistic regression: %f" % roc_auc)
 
         logging.info('starting SVM on pos-only data...')
         svm_labels = svm_label_data(X, y, test_set, C=1000.0)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-        roc_curves.append((fpr, tpr, roc_auc, 'SVM'))
+        roc_curves.append(('SVM', roc_auc, fpr, tpr, 'b-'))
         print('AUC for SVM on positive vs unlabeled: %f' % roc_auc)
         logging.info('done SVM')
 
         logging.info('starting SVM on true labels...')
         svm_labels = svm_label_data(X, y_labeled, test_set, C=1000.0)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-        roc_curves.append((fpr, tpr, roc_auc, 'SVM true labels'))
+        roc_curves.append(('SVM true labels', roc_auc, fpr, tpr, 'b--'))
         print('AUC for SVM on true labels: %f' % roc_auc)
         logging.info('done SVM')
 
@@ -144,8 +144,9 @@ if __name__=='__main__':
         import pylab as pl
         pl.clf()
 
-        for ((fpr, tpr, roc_auc, name), color) in zip(roc_curves, ['r', 'r', 'r', 'b', 'b']):
-            pl.plot(fpr, tpr, color, label='%s (AUC = %0.2f)' % (name, roc_auc))
+        roc_curves = sorted(roc_curves, key=lambda a: a[1])
+        for (name, roc_auc, fpr, tpr, color) in roc_curves:
+            pl.plot(fpr, tpr, color, label='%s (AUC = %0.4f)' % (name, roc_auc))
 
         pl.plot([0, 1], [0, 1], 'k--')
         pl.xlim([0.0, 1.0])
