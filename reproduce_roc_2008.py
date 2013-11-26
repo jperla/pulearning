@@ -24,8 +24,8 @@ if __name__=='__main__':
     pos, neg, unlabeled_pos = read_swissprot_data()
 
     # Use less data so that we can move faster, comment this out to use full dataset
-    #truncate = lambda m: m[:int(m.shape[0] / 30),:]
-    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    truncate = lambda m: m[:int(m.shape[0] / 10),:]
+    pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], k=num_folds, shuffle=True, random_state=0))
@@ -96,6 +96,24 @@ if __name__=='__main__':
         roc_auc = sklearn.metrics.auc(fpr, tpr)
         print("Area under the ROC curve for modified logistic regression: %f" % roc_auc)
 
+        c = sklearn.svm.SVC()
+        c.probability = True
+        c.C = 1000
+        c.fit(X, y)
+        svm_labels = c.predict_proba(test_set)
+        fpr, tpr, thresholds = sklearn.metrics.roc_curve(test_labels, svm_labels[:,1])
+        roc_auc = sklearn.metrics.auc(fpr, tpr)
+        print('AUC for SVM on positive vs unlabeled: %f' % roc_auc)
+
+        c = sklearn.svm.SVC()
+        c.probability = True
+        c.C = 1000
+        c.fit(X, y_labeled)
+        svm_labels = c.predict_proba(test_set)
+        fpr, tpr, thresholds = sklearn.metrics.roc_curve(test_labels, svm_labels[:,1])
+        roc_auc = sklearn.metrics.auc(fpr, tpr)
+        print('AUC for SVM on true labels: %f' % roc_auc)
+
         # Plot ROC curve
         '''
         import pylab as pl
@@ -110,4 +128,5 @@ if __name__=='__main__':
         pl.legend(loc="lower right")
         pl.show()
         '''
+
 
