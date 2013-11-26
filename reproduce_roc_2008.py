@@ -1,8 +1,9 @@
 import os
 import logging
 
-import numpy as np
+import scipy
 import sklearn
+import numpy as np
 
 import logistic
 
@@ -11,8 +12,6 @@ def read_swissprot_data():
         Returns 3-tuple of numpy arrays.
     """
     folder = 'proteindata'
-    filenames = ['P', 'N', 'Q']
-
     npy_filenames = 'pos', 'neg', 'test_pos'
     return (np.load(os.path.join(folder, 'data.%s.swissprot.npy' % d)) for d in npy_filenames)
 
@@ -47,31 +46,48 @@ if __name__=='__main__':
                                  np.array([0] * neg_test.shape[0])])
 
         # set up the datasets
-        X = np.vstack([pos_train, neg_train, unlabeled_pos_train])
+        X = np.vstack([pos_train, unlabeled_pos_train, neg_train])
         y = np.hstack([np.array([1] * pos_train.shape[0]),
-                      np.array([0] * (neg_train.shape[0] + unlabeled_pos_train.shape[0]))])
-        X, y = sklearn.utils.shuffle(X, y)
+                      np.array([0] * (unlabeled_pos_train.shape[0] + neg_train.shape[0]))])
+        y_labeled = np.hstack([np.array([1] * (pos_train.shape[0] + unlabeled_pos_train.shape[0])),
+                              np.array([0] * neg_train.shape[0])])
+        X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
+        X = scipy.sparse.csr_matrix(X) # sparsify X
+
+        # Baseline if we knew everything
+        max_iter = 100
+        logging.info('starting LR on totally labeled data...')
+        theta_labeled = logistic.fast_logistic_gradient_descent(X,
+                                                                y_labeled,
+                                                                max_iter=max_iter)
+        logging.info('done LR')
 
         # calculate the parameters
-        max_iter = 100
-        logging.info('starting LR...')
+        logging.info('starting LR on pos-only data...')
         thetaR = logistic.fast_logistic_gradient_descent(X,
-                                                         y, 
+                                                         y,
                                                          max_iter=max_iter)
-        logging.info('done LR...')
-        logging.info('starting modified LR...')
+        logging.info('done LR')
+        logging.info('starting modified LR on pos-only data...')
         thetaMR, b = logistic.fast_modified_logistic_gradient_descent(X,
                                                                       y, 
                                                                       max_iter=max_iter, 
                                                                       alpha=0.01)
-        logging.info('done modified LR')
+        logging.info('done modified LR on pos-only data')
+
 
         # label the test set
+        baseline_labels = logistic.label_data(test_set, theta_labeled, binarize=False)
         regression_labels = logistic.label_data(test_set, thetaR, binarize=False)
         modified_regression_labels = logistic.label_data(test_set, thetaMR, (b * b), binarize=False)
 
         print regression_labels
         print modified_regression_labels
+
+        # Compute ROC curve and area the curve
+        fpr, tpr, thresholds = sklearn.metrics.roc_curve(test_labels, baseline_labels)
+        roc_auc = sklearn.metrics.auc(fpr, tpr)
+        print("Area under the ROC curve for logistic regression on totally labeled dataset: %f" % roc_auc)
 
         # Compute ROC curve and area the curve
         fpr, tpr, thresholds = sklearn.metrics.roc_curve(test_labels, regression_labels)
