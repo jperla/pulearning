@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import functools
 
@@ -7,6 +8,9 @@ import sklearn
 import numpy as np
 
 import logistic
+
+#C_VALUES = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+C_VALUES = [0.0001, 0.01, 1.0, 100.0, 10000.0]
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -33,23 +37,61 @@ def calculate_roc(true_labels, estimated_labels):
     roc_auc = sklearn.metrics.auc(fpr, tpr)
     return fpr, tpr, roc_auc
 
-def svm_label_data(train_set, train_labels, test_set, C=1000.0, positive_weight=1.0, sample_weight=None):
-    c = sklearn.svm.SVC(C=C, class_weight={0: 1.0, 1: positive_weight})
-    c.probability = True
-    c.fit(train_set, train_labels, sample_weight=sample_weight)
-    svm_labels = c.predict_proba(test_set)
+def validate_svm(train_set, train_labels, validation_set, validation_labels, C=1000.0, CP=1000.0, sample_weight=None):
+    positive_weight = CP / C
+    classifier = sklearn.svm.SVC(C=C, class_weight={0: 1.0, 1: positive_weight})
+    classifier.probability = True
+    classifier.fit(train_set, train_labels, sample_weight=sample_weight)
+    svm_labels = classifier.predict_proba(validation_set)
+    _, _, auc = calculate_roc(validation_labels, svm_labels[:,1])
+    return classifier, auc
+
+def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sample_weight=None):
+    """Tries out several values for C by training on 75% of the training data, and validating on the rest.
+        Picks the best values of C then uses it on the test set.
+    """
+    if sample_weight is None:
+        learn_sample_weight = None
+        learn_set, validation_set, learn_labels, validation_labels, = sklearn.cross_validation.train_test_split(train_set, train_labels, train_size=0.75)
+    else:
+        learn_set, validation_set, learn_labels, validation_labels, learn_sample_weight, _ = sklearn.cross_validation.train_test_split(train_set, train_labels, sample_weight, train_size=0.75)
+
+    svms = []
+    if CP is None:
+      for c in C:
+        cp = c
+        svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
+                                     C=c, CP=cp, sample_weight=learn_sample_weight)
+        svms.append((auc, svm, c, cp))
+        logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
+    else:
+      for c in C:
+        for cp in CP:
+            svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
+                                         C=c, CP=cp, sample_weight=learn_sample_weight)
+            svms.append((auc, svm, c, cp))
+            logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
+
+    # get the top SVM
+    best_svm = list(reversed(sorted(svms)))[0]
+    logging.info('Best SVM: C=%s, CP=%s, auc=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
+    svm = best_svm[1]
+
+    svm.fit(train_set, train_labels, sample_weight=sample_weight)
+    svm_labels = svm.predict_proba(test_set)
     return svm_labels
 
 if __name__=='__main__':
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+    logging.getLogger().setLevel(logging.DEBUG)
 
     max_key = 24081
 
     pos, neg, unlabeled_pos = read_swissprot_data()
 
     # Use less data so that we can move faster, comment this out to use full dataset
-    #truncate = lambda m: m[:int(m.shape[0] / 10),:]
+    #truncate = lambda m: m[:int(m.shape[0] / 30),:]
     #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
@@ -70,9 +112,9 @@ if __name__=='__main__':
         test_labels = create_labels((1, pos_test.shape[0] + unlabeled_pos_test.shape[0]),
                                     (0, neg_test.shape[0]))
 
-        logging.debug('pos train', pos_train.shape)
-        logging.debug('neg train', neg_train.shape)
-        logging.debug('unlabeled pos train', unlabeled_pos_train.shape)
+        logging.debug('pos train: %s', str(pos_train.shape))
+        logging.debug('neg train: %s', str(neg_train.shape))
+        logging.debug('unlabeled pos train: %s', str(unlabeled_pos_train.shape))
 
         # set up the datasets
         X = np.vstack([pos_train, unlabeled_pos_train, neg_train])
@@ -133,15 +175,14 @@ if __name__=='__main__':
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
         logging.info('starting SVM on pos-only data...')
-        svm_labels = svm_label_data(X, y, test_set, C=1000.0)
+        svm_labels = svm_label_data(X, y, test_set)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
         name = 'SVM pos-only labels'
         roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
-        logging.info('done SVM')
 
         logging.info('starting Biased SVM...')
-        svm_labels = svm_label_data(X, y, test_set, C=1000.0, positive_weight=0.00001)
+        svm_labels = svm_label_data(X, y, test_set, CP=C_VALUES)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
         name = 'Biased SVM pos-only labels'
         roc_curves.append((name, roc_auc, fpr, tpr, 'g-'))
@@ -149,16 +190,16 @@ if __name__=='__main__':
 
         logging.info('starting weighted SVM...')
         # I have to copy to avoid an error that says that svm_weight is not C-contiguous!
-        svm_weight = svm_label_data(X, y, X, C=1000.0)[:,1].copy()
+        svm_weight = svm_label_data(X, y, X)[:,1].copy()
         # now run this again with the probabilites as the weights
-        svm_labels = svm_label_data(X, y, test_set, C=1000.0, sample_weight=svm_weight)
+        svm_labels = svm_label_data(X, y, test_set, sample_weight=svm_weight)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
         name = 'Weighted SVM pos-only labels'
         roc_curves.append((name, roc_auc, fpr, tpr, 'g--'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
         logging.info('starting SVM on true labels...')
-        svm_labels = svm_label_data(X, y_labeled, test_set, C=1000.0)
+        svm_labels = svm_label_data(X, y_labeled, test_set)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
         name = 'SVM true labels'
         roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
@@ -177,7 +218,7 @@ if __name__=='__main__':
         pl.ylim([0.7, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
-        pl.title('Receiver operating characteristic example')
+        pl.title('ROC for Protein Datasets')
         pl.legend(loc="lower right")
         pl.show()
 
