@@ -33,17 +33,16 @@ def calculate_roc(true_labels, estimated_labels):
     roc_auc = sklearn.metrics.auc(fpr, tpr)
     return fpr, tpr, roc_auc
 
-def svm_label_data(train_set, train_labels, test_set, C=1000.0):
-    c = sklearn.svm.SVC()
+def svm_label_data(train_set, train_labels, test_set, C=1000.0, positive_weight=1.0, sample_weight=None):
+    c = sklearn.svm.SVC(C=C, class_weight={0: 1.0, 1: positive_weight})
     c.probability = True
-    c.C = C
-    c.fit(train_set, train_labels)
+    c.fit(train_set, train_labels, sample_weight=sample_weight)
     svm_labels = c.predict_proba(test_set)
     return svm_labels
 
 if __name__=='__main__':
     FORMAT = '%(asctime)-15s %(message)s'
-    logging.basicConfig(format=FORMAT, level=logging.INFO)
+    logging.basicConfig(format=FORMAT, level=logging.DEBUG)
 
     max_key = 24081
 
@@ -70,6 +69,10 @@ if __name__=='__main__':
         test_set = np.vstack([pos_test, unlabeled_pos_test, neg_test])
         test_labels = create_labels((1, pos_test.shape[0] + unlabeled_pos_test.shape[0]),
                                     (0, neg_test.shape[0]))
+
+        logging.debug('pos train', pos_train.shape)
+        logging.debug('neg train', neg_train.shape)
+        logging.debug('unlabeled pos train', unlabeled_pos_train.shape)
 
         # set up the datasets
         X = np.vstack([pos_train, unlabeled_pos_train, neg_train])
@@ -113,44 +116,65 @@ if __name__=='__main__':
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(baseline_labels)
-        roc_curves.append(('LR true labels', roc_auc, fpr, tpr, 'r-'))
-        print("Area under the ROC curve for logistic regression on totally labeled dataset: %f" % roc_auc)
+        name = 'LR true labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'r-'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(regression_labels)
-        roc_curves.append(('LR', roc_auc, fpr, tpr, 'r--'))
-        print("Area under the ROC curve for standard logistic regression: %f" % roc_auc)
+        name = 'LR pos-only labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'r-.'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(modified_regression_labels)
-        roc_curves.append(('Modified LR', roc_auc, fpr, tpr, 'r-.'))
-        print("Area under the ROC curve for modified logistic regression: %f" % roc_auc)
+        name = 'Modified LR pos-only labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'r--'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
 
         logging.info('starting SVM on pos-only data...')
         svm_labels = svm_label_data(X, y, test_set, C=1000.0)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-        roc_curves.append(('SVM', roc_auc, fpr, tpr, 'b-'))
-        print('AUC for SVM on positive vs unlabeled: %f' % roc_auc)
+        name = 'SVM pos-only labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
         logging.info('done SVM')
+
+        logging.info('starting Biased SVM...')
+        svm_labels = svm_label_data(X, y, test_set, C=1000.0, positive_weight=0.00001)
+        fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
+        name = 'Biased SVM pos-only labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'g-'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
+
+        logging.info('starting weighted SVM...')
+        # I have to copy to avoid an error that says that svm_weight is not C-contiguous!
+        svm_weight = svm_label_data(X, y, X, C=1000.0)[:,1].copy()
+        # now run this again with the probabilites as the weights
+        svm_labels = svm_label_data(X, y, test_set, C=1000.0, sample_weight=svm_weight)
+        fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
+        name = 'Weighted SVM pos-only labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'g--'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
 
         logging.info('starting SVM on true labels...')
         svm_labels = svm_label_data(X, y_labeled, test_set, C=1000.0)
         fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-        roc_curves.append(('SVM true labels', roc_auc, fpr, tpr, 'b--'))
-        print('AUC for SVM on true labels: %f' % roc_auc)
-        logging.info('done SVM')
+        name = 'SVM true labels'
+        roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
+        logging.info('AUC for %s: %f' % (name, roc_auc))
 
         # Plot ROC curve
         import pylab as pl
         pl.clf()
 
-        roc_curves = sorted(roc_curves, key=lambda a: a[1])
-        for (name, roc_auc, fpr, tpr, color) in roc_curves:
+        sorted_roc_curves = reversed(sorted(roc_curves, key=lambda a: a[1]))
+        for (name, roc_auc, fpr, tpr, color) in sorted_roc_curves:
             pl.plot(fpr, tpr, color, label='%s (AUC = %0.4f)' % (name, roc_auc))
 
         pl.plot([0, 1], [0, 1], 'k--')
-        pl.xlim([0.0, 1.0])
-        pl.ylim([0.0, 1.0])
+        pl.xlim([0.0, 0.3])
+        pl.ylim([0.7, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
         pl.title('Receiver operating characteristic example')
