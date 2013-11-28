@@ -9,8 +9,8 @@ import numpy as np
 
 import logistic
 
-#C_VALUES = [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
-C_VALUES = [0.0001, 0.01, 1.0, 100.0, 10000.0]
+#C_VALUES = [0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
+C_VALUES = [1.0, 100.0, 10000.0]
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -39,7 +39,8 @@ def calculate_roc(true_labels, estimated_labels):
 
 def validate_svm(train_set, train_labels, validation_set, validation_labels, C=1000.0, CP=1000.0, sample_weight=None):
     positive_weight = CP / C
-    classifier = sklearn.svm.SVC(C=C, class_weight={0: 1.0, 1: positive_weight})
+    classifier = sklearn.svm.SVC(C=C,
+                                 class_weight={0: 1.0, 1: positive_weight})
     classifier.probability = True
     classifier.fit(train_set, train_labels, sample_weight=sample_weight)
     svm_labels = classifier.predict_proba(validation_set)
@@ -62,20 +63,20 @@ def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sampl
         cp = c
         svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
                                      C=c, CP=cp, sample_weight=learn_sample_weight)
-        svms.append((auc, svm, c, cp))
+        svms.append((auc, 1.0 / c, c, cp, svm))
         logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
     else:
       for c in C:
         for cp in CP:
             svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
                                          C=c, CP=cp, sample_weight=learn_sample_weight)
-            svms.append((auc, svm, c, cp))
+            svms.append((auc, 1.0 / c, c, cp, svm))
             logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
 
     # get the top SVM
     best_svm = list(reversed(sorted(svms)))[0]
     logging.info('Best SVM: C=%s, CP=%s, auc=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
-    svm = best_svm[1]
+    svm = best_svm[4]
 
     svm.fit(train_set, train_labels, sample_weight=sample_weight)
     svm_labels = svm.predict_proba(test_set)
