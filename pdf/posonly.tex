@@ -1,0 +1,86 @@
+\documentclass[]{article}
+\usepackage{graphicx}
+\usepackage[numbers]{natbib}
+
+\begin{document}
+
+\title{Learning from Positive and Unlabeled Data}
+\author{Joseph Perla}
+\date{November 28, 2013}
+\maketitle
+
+\section{Introduction}
+
+Many datasets do not have full training data that includes a large number of positive and negative labeled data.  Very often, datasets have a small amount of manually positively labeled data, and a large amount of unlabeled data.  Note that this situation is different from most semi-supervised learning because previous work on semi-supervised learning does have negatively labeled data and all positive data are labeled.
+
+\section{Dataset}
+
+The algorithms were run on the SwissProt\cite{elkan08} dataset of 7359 proteins which each have a sparse set of 24081 binary features related to characteristics of the proteins. It contains 4558 negative examples, 2453 labeled positive examples, and 348 unlabeled positive examples.   We consider the negative and unlabeled positive examples together as the unlabeled dataset.
+
+\section{Algorithms}
+
+\subsection{Optimal}
+Learning on a training set with only some positively labeled data cannot achieve a higher accuracy on the test data than training on the same training dataset where all labels are known (if so, then one could throw out the negative labels in the latter case and achieve the same results).  Therefore, we compare our results to training an SGD logistic regression classifier (LR) and a standard RBF-kernel SVM (SVM) on the training set with all labels known and correctly labeled.
+
+\subsection{Baseline}
+
+As a baseline, we show results for running standard logistic regression and an SVM using the positive labeled data versus the unlabeled data.  This overfits to the subset of labeled positive examples which misclassifies many positive examples on the test set.
+
+
+\label{ROC for Protein Dataset}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{rocproteindata.png}
+\caption{The ROC curves for various learning algorithms on sets of the protein dataset.  Note that we zoom into the most interesting region in the top left.  As expected, both LR and SVM trained on the true labels perform the best and approximately equally on the test set (10 holdout). Standard LR and SVM on the positive data versus the unlabeled data perform poorly.  The best previous work, Biased SVM, does not perform much better than the baselines.  The Modified Logistic Regression trained on the positive labeled data and unlabeled data performs nearly as well on the test set as the classifiers trained with full knowledge of all positive and negative labels.}
+\end{figure}
+
+\subsection{Previous Work}
+Previous work\cite{elkan08} achieved maximal classification accuracy with a Biased SVM, an SVM where the positive labeled examples were given a different misclassification penalty than the unlabeled examples.  The standard SVM algorithm multiplies all misclassification penalties by the same constant factor $C$ for all examples. A Biased SVM has two values $C_u$ and $C_p$ which multiply the penalty by different factors for different types of error.
+
+\subsection{Weighted SVM}
+We also show results for a weighted SVM algorithm, where the SVM classifier is run once to assign probabilities of assignment, then those probabilities are used to weigh the inputs to a second SVM classifier which produces the final output.  The results of the Weighted SVM are strong in the previous work, but the results here are weaker  due to poor parameter selection for the SVMs.
+
+\subsection{Modified Logistic Regression}
+The contribution of this paper is a modified version of logistic regression that we solve using SGD (Modified LR).  Whereas standard logistic regression optimizes the following objective:
+
+$$ \frac{1}{1 + e^{\overline{w} \cdot \overline{x}}} $$
+
+Our modified logistic regression adds a term $b^2$ which allows a proportion of the unlabeled examples to be classified as positive. From the final value of $b^2$, we calculate the proportion of positive examples which are labeled (taking the assumption that the labeled positive examples are selected completely at random and have no bias in which ones are labeled).
+
+$$ \frac{1}{1 + b^2 + e^{\overline{w} \cdot \overline{x}}} $$
+
+This algorithm which, in a principled way, takes into account the unlabeled positive data, performs nearly as well as the classifiers run using the fully labeled training set, and much better than previous work and the baseline naive classifiers.
+
+\section{Estimating the proportion of labeled examples}
+Let $s$ be a binary indicator variable signifying if an example is labeled, and let $y$ be the label of the example with features $x$. Let $c = p(s=1|y=1)$ the proportion of truly positive examples which are visibly labeled as such. From $c$, we can easily derive $p(y=1)$ the fraction of the data which are truly positive:
+
+$$ p(y=1) = \frac{|P|}{c|P+U|} $$
+
+Previous work on this topic\cite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(s=1|x) = c = p(s=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This happens often when the positive and negative distributions overlap (and never when they are separable). The correct derivation is therefore
+
+$$ g(x) = p(s=1|x) $$ 
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|x,y=0)p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|y=0)p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + 0 \cdot p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x)$$
+$$ g(x) = c \cdot p(y=1|x)$$
+
+We can derive various estimators of $c$ using the classifiers, and the best seems to be based on $b$ calculated with the Modified Logistic Regression algorithm above.
+
+$$c \approx \frac{1}{1 + b^2}$$
+
+\section{Synthetic Example}
+
+Here, we reproduce a version of Figure 1 in \cite{elkan08}. 
+
+\label{Synthetic data}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{syntheticlr.png}
+\caption{Blue points are positive examples. The larger ellipse is the result of training LR, the smaller from training Modified LR. The features were $x$, $y$, $x \cdot x$, and $y \cdot y$.   500 positive datapoints were generated using a random gaussian with mean (2, 2) and covariance [[1, 1], [1, 4]].  1000 negative datapoints were generated with mean (-2, -3) and covariance [[4, -1], [-1, 4]]}
+\end{figure}
+
+\bibliographystyle{plainnat}
+\bibliography{doc}
+
+\end{document}
