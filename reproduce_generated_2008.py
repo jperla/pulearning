@@ -83,11 +83,12 @@ if __name__ == '__main__':
         #pyplot.clabel(CS, inline=1, fontsize=10)
 
 
-        labels = logistic.label_data(data, thetaM, normalizer=b, binarize=False)
+        print 'b: ', b
+        print 'c ~ ', 1.0 / (1.0 + b*b)
+        labels = logistic.label_data(data, thetaM, normalizer=(b*b), binarize=False)
         labels.shape = shape
         CS = pyplot.contour(X, Y, labels, [0.10,])
         #pyplot.clabel(CS, inline=1, fontsize=15)
 
-
-        pyplot.title('Elkan and Noto')
+        pyplot.title('Logistic regression on synthetic data')
         pyplot.show()

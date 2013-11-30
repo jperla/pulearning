@@ -127,7 +127,7 @@ if __name__=='__main__':
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
         # Baseline if we knew everything
-        max_iter = 100
+        max_iter = 1000
         logging.info('starting LR on totally labeled data...')
         theta_labeled = logistic.fast_logistic_gradient_descent(X,
                                                                 y_labeled,
@@ -144,9 +144,12 @@ if __name__=='__main__':
         thetaMR, b = logistic.fast_modified_logistic_gradient_descent(X,
                                                                       y, 
                                                                       max_iter=max_iter, 
-                                                                      alpha=0.01)
+                                                                      alpha=0.1)
         logging.info('done modified LR on pos-only data')
 
+
+        logging.info('b = %s' % b)
+        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + b*b)))
 
         # label the test set
         baseline_labels = logistic.label_data(test_set, theta_labeled, binarize=False)
