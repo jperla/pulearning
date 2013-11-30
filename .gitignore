@@ -54,3 +54,4 @@ pip-log.txt
 
 # tex / Latexian
 TSWLatexianTemp*
+*.pdf
