@@ -10,7 +10,8 @@ import numpy as np
 import logistic
 
 #C_VALUES = [0.00001, 0.0001, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0]
-C_VALUES = [1.0, 100.0, 10000.0]
+#C_VALUES = [1e-13, 1e-10, 1e-7, 1e-4, 1e-1, 1e2, 1e5, 1e8, 1e11, 1e14]
+C_VALUES = [0.01, 0.1]
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -39,44 +40,41 @@ def calculate_roc(true_labels, estimated_labels):
 
 def validate_svm(train_set, train_labels, validation_set, validation_labels, C=1000.0, CP=1000.0, sample_weight=None):
     positive_weight = CP / C
-    classifier = sklearn.svm.SVC(C=C,
+    classifier = sklearn.svm.SVC(kernel='linear',
+                                 C=C,
                                  class_weight={0: 1.0, 1: positive_weight})
-    classifier.probability = True
     classifier.fit(train_set, train_labels, sample_weight=sample_weight)
-    svm_labels = classifier.predict_proba(validation_set)
-    _, _, auc = calculate_roc(validation_labels, svm_labels[:,1])
-    return classifier, auc
+    classifier.probability = True
+    svm_labels = classifier.predict(validation_set)
+    accuracy = float(sum(validation_labels == svm_labels)) / len(svm_labels)
+    return classifier, accuracy
 
 def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sample_weight=None):
     """Tries out several values for C by training on 75% of the training data, and validating on the rest.
         Picks the best values of C then uses it on the test set.
     """
-    if sample_weight is None:
-        learn_sample_weight = None
-        learn_set, validation_set, learn_labels, validation_labels, = sklearn.cross_validation.train_test_split(train_set, train_labels, train_size=0.75)
-    else:
-        learn_set, validation_set, learn_labels, validation_labels, learn_sample_weight, _ = sklearn.cross_validation.train_test_split(train_set, train_labels, sample_weight, train_size=0.75)
+    kfolds = list(sklearn.cross_validation.KFold(train_set.shape[0], k=3, shuffle=True, random_state=0))
 
     svms = []
-    if CP is None:
-      for c in C:
-        cp = c
-        svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
-                                     C=c, CP=cp, sample_weight=learn_sample_weight)
-        svms.append((auc, 1.0 / c, c, cp, svm))
-        logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
-    else:
-      for c in C:
-        for cp in CP:
-            svm, auc = validate_svm(learn_set, learn_labels, validation_set, validation_labels, 
-                                         C=c, CP=cp, sample_weight=learn_sample_weight)
-            svms.append((auc, 1.0 / c, c, cp, svm))
-            logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * auc))
+    for c in C:
+        cps = [c] if CP is None else CP
+        for cp in cps:
+            svm, accuracies = None, []
+
+            svm = sklearn.svm.SVC(kernel='linear', C=c, class_weight={0: 1.0, 1: cp / c})
+            svm.probability = True
+            scores = sklearn.cross_validation.cross_val_score(svm, train_set, train_labels, cv=3, n_jobs=-1)
+
+            accuracy = scores.mean()
+            svms.append((accuracy, 1.0 / c, c, cp, svm))
+            logging.debug('accuracies = %s' % str(scores))
+            logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * accuracy))
 
     # get the top SVM
     best_svm = list(reversed(sorted(svms)))[0]
-    logging.info('Best SVM: C=%s, CP=%s, auc=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
-    svm = best_svm[4]
+    logging.info('Best SVM: C=%s, CP=%s, accuracy=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
+    svm = sklearn.svm.SVC(kernel='linear', C=best_svm[2], class_weight={0: 1.0, 1: best_svm[3] / best_svm[2]})
+    svm.probability = True
 
     svm.fit(train_set, train_labels, sample_weight=sample_weight)
     svm_labels = svm.predict_proba(test_set)
@@ -90,6 +88,8 @@ if __name__=='__main__':
     max_key = 24081
 
     pos, neg, unlabeled_pos = read_swissprot_data()
+    # switch cases to use a smaller labeled dataset
+    unlabeled_pos, pos = pos, unlabeled_pos 
 
     # Use less data so that we can move faster, comment this out to use full dataset
     #truncate = lambda m: m[:int(m.shape[0] / 30),:]
@@ -127,7 +127,7 @@ if __name__=='__main__':
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
         # Baseline if we knew everything
-        max_iter = 1000
+        max_iter = 100
         logging.info('starting LR on totally labeled data...')
         theta_labeled = logistic.fast_logistic_gradient_descent(X,
                                                                 y_labeled,
@@ -144,7 +144,7 @@ if __name__=='__main__':
         thetaMR, b = logistic.fast_modified_logistic_gradient_descent(X,
                                                                       y, 
                                                                       max_iter=max_iter, 
-                                                                      alpha=0.1)
+                                                                      alpha=0.01)
         logging.info('done modified LR on pos-only data')
 
 
@@ -218,8 +218,8 @@ if __name__=='__main__':
             pl.plot(fpr, tpr, color, label='%s (AUC = %0.4f)' % (name, roc_auc))
 
         pl.plot([0, 1], [0, 1], 'k--')
-        pl.xlim([0.0, 0.3])
-        pl.ylim([0.7, 1.0])
+        pl.xlim([0.0, 1.0])
+        pl.ylim([0.0, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
         pl.title('ROC for Protein Datasets')

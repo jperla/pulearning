@@ -20,7 +20,7 @@ The algorithms were run on the SwissProt\cite{elkan08} dataset of 7359 proteins 
 \section{Algorithms}
 
 \subsection{Optimal}
-Learning on a training set with only some positively labeled data cannot achieve a higher accuracy on the test data than training on the same training dataset where all labels are known (if so, then one could throw out the negative labels in the latter case and achieve the same results).  Therefore, we compare our results to training an SGD logistic regression classifier (LR) and a standard RBF-kernel SVM (SVM) on the training set with all labels known and correctly labeled.
+Learning on a training set with only some positively labeled data cannot achieve a higher accuracy on the test data than training on the same training dataset where all labels are known (if so, then one could throw out the negative labels in the latter case and achieve the same results).  Therefore, we compare our results to training an SGD logistic regression classifier (LR) and a standard RBF-kernel SVM (SVM) on the training set with all labels known and correctly labeled.  This SVM and all SVMs in this paper were trained using a linear kernel, because the number of features exceeds the number of examples, and three-fold cross-validation was used to determine which value of the regularizer $C \in {1e-5, ... 1e5}$ performs optimally on the training set.
 
 \subsection{Baseline}
 
@@ -35,7 +35,7 @@ As a baseline, we show results for running standard logistic regression and an S
 \end{figure}
 
 \subsection{Previous Work}
-Previous work\cite{elkan08} achieved maximal classification accuracy with a Biased SVM, an SVM where the positive labeled examples were given a different misclassification penalty than the unlabeled examples.  The standard SVM algorithm multiplies all misclassification penalties by the same constant factor $C$ for all examples. A Biased SVM has two values $C_u$ and $C_p$ which multiply the penalty by different factors for different types of error.
+Previous work\cite{elkan08} achieved maximal classification accuracy with a Biased SVM, an SVM where the positive labeled examples were given a different misclassification penalty than the unlabeled examples.  The standard SVM algorithm multiplies all misclassification penalties by the same constant factor $C$ for all examples. A Biased SVM has two values $C_u$ and $C_p$ which multiply the penalty by different factors for errors on unlabeled and positive examples, respectively.
 
 \subsection{Weighted SVM}
 We also show results for a weighted SVM algorithm, where the SVM classifier is run once to assign probabilities of assignment, then those probabilities are used to weigh the inputs to a second SVM classifier which produces the final output.  The results of the Weighted SVM are strong in the previous work, but the results here are weaker  due to poor parameter selection for the SVMs.
@@ -51,14 +51,23 @@ $$ \frac{1}{1 + b^2 + e^{\overline{w} \cdot \overline{x}}} $$
 
 This algorithm which, in a principled way, takes into account the unlabeled positive data, performs nearly as well as the classifiers run using the fully labeled training set, and much better than previous work and the baseline naive classifiers.
 
+
+\label{ROC for Swapped Protein Dataset}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{rocswappedproteindata.png}
+\caption{We re-run the algorithms from Figure 1 on the same dataset, but swapping the unlabeled positive examples for the labeled positive examples. Our new dataset contains 4558 negative examples, 2453 unlabeled positive examples, and only 348 labeled positive examples.  Modified LR still performs significantly better than baselines and previous work, although not as well as knowing the full dataset.  These results are impressive because less than 5\% of the examples are labeled, all of which are positive labels. The weighted SVM and other SVMs may not be optimally calibrated.}
+\end{figure}
+
+
 \section{Estimating the proportion of labeled examples}
-Let $s$ be a binary indicator variable signifying if an example is labeled, and let $y$ be the label of the example with features $x$. Let $c = p(s=1|y=1)$ the proportion of truly positive examples which are visibly labeled as such. From $c$, we can easily derive $p(y=1)$ the fraction of the data which are truly positive:
+Let $s$ be a binary indicator variable signifying if an example is labeled, and let $y$ be the label of the example with features $x$. Let $c = p(s=1|y=1)$ the proportion of truly positive examples which are visibly labeled as such. $P$ is the positively labeled data, and $U$ is the unlabeled data. From $c$, we can easily derive $p(y=1)$ the fraction of the data which are truly positive via Bayes' Rule:
 
-$$ p(y=1) = \frac{|P|}{c|P+U|} $$
+$$ p(y=1) = \frac{p(s=1)}{p(s = 1|y = 1)} =  \frac{|P|}{p(s = 1|y = 1)|P+U|} = \frac{|P|}{c|P+U|} $$
 
-Previous work on this topic\cite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(s=1|x) = c = p(s=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This happens often when the positive and negative distributions overlap (and never when they are separable). The correct derivation is therefore
+Previous work on this topic\cite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(s=1|x) = c = p(s=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This occurs often when the positive and negative distributions overlap (and never when they are separable). The correct derivation is therefore
 
-$$ g(x) = p(s=1|x) $$ 
+$$ g(x) = p(s=1|x) $$
 $$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|x,y=0)p(y=0|x)$$
 $$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|y=0)p(y=0|x)$$
 $$ g(x) = p(s=1|x,y=1)p(y=1|x) + 0 \cdot p(y=0|x)$$
@@ -69,6 +78,15 @@ We can derive various estimators of $c$ using the classifiers, and the best seem
 
 $$c \approx \frac{1}{1 + b^2}$$
 
+This is because Modified Logistic Regression generates calibrated probabilities in the same way that standard logistic regression does, but instead of having a maximum probability of $1$ for a positive label, it can only have a maximum probability of $p(s=1|y=1)=c$, since any positive example has at most that probability of being labeled.  Modified Logistic Regression calibrates its probabilities directly using the data and finds $b$ during training of
+
+$$g(x) = \frac{1}{1 + b^2 + e^{\overline{w} \cdot \overline{x}}}$$
+
+which has a maximum when $\overline{w} \cdot \overline{x}=-\infty$
+
+$$g(x) = \frac{1}{1 + b^2} \approx c$$
+
+
 \section{Synthetic Example}
 
 Here, we reproduce a version of Figure 1 in \cite{elkan08}. 
@@ -77,7 +95,7 @@ Here, we reproduce a version of Figure 1 in \cite{elkan08}.
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{syntheticlr.png}
-\caption{Blue points are positive examples. The larger ellipse is the result of training LR, the smaller from training Modified LR. The features were $x$, $y$, $x \cdot x$, and $y \cdot y$.   500 positive datapoints were generated using a random gaussian with mean (2, 2) and covariance [[1, 1], [1, 4]].  1000 negative datapoints were generated with mean (-2, -3) and covariance [[4, -1], [-1, 4]]}
+\caption{Blue points are positive examples, red negative. The largest dark blue ellipse is the result of training standard LR on all of the data labeled. The smaller light blue ellpise is the result of training standard LR on the positive vs unlabeled examples. The red ellipse is from training Modified LR on the positive vs unlabeled examples. The features were $x$, $y$, $x \cdot x$, and $y \cdot y$.  Modified LR captures a more representative sample of the positive datapoints, as well as calculating the approximate value of $c = 0.2 \approx 0.196$.   500 positive datapoints were generated using a random gaussian with mean (2, 2) and covariance [[1, 1], [1, 4]].  1000 negative datapoints were generated with mean (-2, -3) and covariance [[4, -1], [-1, 4]]}
 \end{figure}
 
 \bibliographystyle{plainnat}

@@ -45,7 +45,7 @@ if __name__ == '__main__':
     #for vf in validation_fractions:
 
 
-        p, n, pos_sample, unlabeled = gen_sample(n_pos, n_neg)
+        pos, neg, pos_sample, unlabeled = gen_sample(n_pos, n_neg)
         # validation set:
         _, _, v_p, v_u = gen_sample(int(vf * n_pos), int(vf * n_neg))
 
@@ -58,6 +58,8 @@ if __name__ == '__main__':
         print t
         table.append(t)
 
+        # run the LR on the true data
+        (thetaTrue, _, _), _ = logistic.calculate_estimators(*(pos, neg, v_p, v_u), max_iter=1000)
 
         # unit area ellipse
         fig = pyplot.figure()
@@ -76,10 +78,14 @@ if __name__ == '__main__':
         assert data.shape[0] == (shape[0] * shape[1]) and data.shape[1] == 2
         data = add_x2_y2(data)
 
+        # plot the LR on the true labels
+        labels = logistic.label_data(data, thetaTrue, normalizer=0.0, binarize=False)
+        labels.shape = shape
+        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#0000FF')
         
         labels = logistic.label_data(data, theta, normalizer=0.0, binarize=False)
         labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,])
+        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#AAAAFF')
         #pyplot.clabel(CS, inline=1, fontsize=10)
 
 
@@ -87,7 +93,7 @@ if __name__ == '__main__':
         print 'c ~ ', 1.0 / (1.0 + b*b)
         labels = logistic.label_data(data, thetaM, normalizer=(b*b), binarize=False)
         labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,])
+        CS = pyplot.contour(X, Y, labels, [0.10,], colors='r')
         #pyplot.clabel(CS, inline=1, fontsize=15)
 
         pyplot.title('Logistic regression on synthetic data')
