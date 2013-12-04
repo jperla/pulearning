@@ -1,5 +1,4 @@
 import os
-import sys
 import logging
 import functools
 
@@ -7,6 +6,7 @@ import scipy
 import sklearn
 import numpy as np
 
+import sgdlr
 import logistic
 
 #C_VALUES = [0.01, 0.1]
@@ -155,15 +155,13 @@ if __name__=='__main__':
         # Baseline if we knew everything
         max_iter = 10
         logging.info('starting modified LR on pos-only data...')
-        thetaMR, b = logistic.fast_modified_logistic_gradient_descent(X,
-                                                                      y, 
-                                                                      max_iter=max_iter, 
-                                                                      alpha=0.01)
-        logging.info('done modified LR on pos-only data: %s' % (np.max(np.abs(thetaMR))))
-        modified_regression_labels = logistic.label_data(test_set, thetaMR, (b * b), binarize=False)
+        mlr = sgdlr.SGDModifiedLogisticRegression(alpha=0.01, n_iter=max_iter)
+        mlr.fit(X, y)
+        logging.info('done training Modified LR on pos-only data: %s' % (np.max(np.abs(mlr.theta_))))
+        modified_regression_labels = mlr.predict_proba(test_set)
 
-        logging.info('b = %s' % b)
-        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + b*b)))
+        logging.info('b = %s' % mlr.b_)
+        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + mlr.b_**2)))
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(modified_regression_labels)
         name = 'Modified LR pos-only labels'
@@ -171,23 +169,18 @@ if __name__=='__main__':
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
 
+        lr = sgdlr.SGDLogisticRegression(alpha=0.01, n_iter=max_iter)
+
         logging.info('starting LR on totally labeled data...')
-        theta_labeled = logistic.fast_logistic_gradient_descent(X,
-                                                                y_labeled,
-                                                                max_iter=max_iter)
+        lr.fit(X, y_labeled)
         logging.info('done LR')
-        baseline_labels = logistic.label_data(test_set, theta_labeled, binarize=False)
+        baseline_labels = lr.predict_proba(test_set)
 
         # calculate the parameters
         logging.info('starting LR on pos-only data...')
-        thetaR = logistic.fast_logistic_gradient_descent(X,
-                                                         y,
-                                                         alpha=0.01,
-                                                         max_iter=max_iter)
+        lr.fit(X, y)
         logging.info('done LR')
-        regression_labels = logistic.label_data(test_set, thetaR, binarize=False)
-
-
+        regression_labels = lr.predict_proba(test_set)
 
         # Compute ROC curve and area the curve
         fpr, tpr, roc_auc = calculate_test_roc(baseline_labels)
