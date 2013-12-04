@@ -64,7 +64,7 @@ def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sampl
     best_svm = list(reversed(sorted(svms)))[0]
     logging.info('Best SVM: C=%s, CP=%s, accuracy=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
 
-    svm = sklearn.svm.SVC(kernel='linear', C=best_svm[2], class_weight={0: 1.0, 1: best_svm[3] / best_svm[2]})
+    svm = sklearn.svm.SVC(kernel='linear', cache_size=2000, C=best_svm[2], class_weight={0: 1.0, 1: best_svm[3] / best_svm[2]})
     svm.probability = True
 
     svm.fit(train_set, train_labels, sample_weight=sample_weight)
@@ -202,7 +202,6 @@ if __name__=='__main__':
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
         calculate_svms = True
-
         if calculate_svms:
             logging.info('starting SVM on pos-only data...')
             svm_labels = svm_label_data(X, y, test_set)
