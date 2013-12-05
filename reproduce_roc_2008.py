@@ -169,7 +169,6 @@ if __name__=='__main__':
         roc_curves.append((name, roc_auc, fpr, tpr, 'r--'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
-
         lr = sgdlr.SGDLogisticRegression(alpha=0.01, n_iter=max_iter)
 
         logging.info('starting LR on totally labeled data...')
@@ -212,29 +211,39 @@ if __name__=='__main__':
             roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
             logging.info('AUC for %s: %f' % (name, roc_auc))
 
+            logging.info('starting SVM on true labels...')
+            svm_labels = svm.fit(X, y_labeled).predict_proba(test_set)
+            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
+            name = 'SVM true labels'
+            roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
+            logging.info('AUC for %s: %f' % (name, roc_auc))
+
             logging.info('starting Biased SVM...')
-            svm_labels = svm_label_data(X, y, test_set, CP=C_VALUES)
+            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0}, {0: 1.0, 1: 2.0}, {0: 1.0, 1: 10.0}]}
+            biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
+                                          sklearn.svm.SVC(probability=True),
+                                          biased_svm_param_grid,
+                                          cv=3,
+                                          n_jobs=-1,
+                                          verbose=3)
+            biased_svm.fit(X, y)
+            svm_labels = biased_svm.predict_proba(test_set)
             fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
             name = 'Biased SVM pos-only labels'
             roc_curves.append((name, roc_auc, fpr, tpr, 'g-'))
             logging.info('AUC for %s: %f' % (name, roc_auc))
 
-            logging.info('starting weighted SVM...')
-            # I have to copy to avoid an error that says that svm_weight is not C-contiguous!
-            svm_weight = svm_label_data(X, y, X)[:,1].copy()
-            # now run this again with the probabilites as the weights
-            svm_labels = svm_label_data(X, y, test_set, sample_weight=svm_weight, C=[0.125, 0.25, 0.5, 1.0])
-            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-            name = 'Weighted SVM pos-only labels'
-            roc_curves.append((name, roc_auc, fpr, tpr, 'g--'))
-            logging.info('AUC for %s: %f' % (name, roc_auc))
-
-            logging.info('starting SVM on true labels...')
-            svm_labels = svm_label_data(X, y_labeled, test_set)
-            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-            name = 'SVM true labels'
-            roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
-            logging.info('AUC for %s: %f' % (name, roc_auc))
+            calculate_weighted_svm = False
+            if calculate_weighted_svm:
+                logging.info('starting weighted SVM...')
+                # I have to copy to avoid an error that says that svm_weight is not C-contiguous!
+                svm_weight = svm_label_data(X, y, X)[:,1].copy()
+                # now run this again with the probabilites as the weights
+                svm_labels = svm_label_data(X, y, test_set, sample_weight=svm_weight, C=[0.125, 0.25, 0.5, 1.0])
+                fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
+                name = 'Weighted SVM pos-only labels'
+                roc_curves.append((name, roc_auc, fpr, tpr, 'g--'))
+                logging.info('AUC for %s: %f' % (name, roc_auc))
 
         # Plot ROC curve
         import pylab as pl
