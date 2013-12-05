@@ -14,9 +14,12 @@ from fastgridsearch import FastGridSearchCV
 #C_VALUES = [1e-13, 1e-10, 1e-7, 1e-4, 1e-1, 1e2, 1e5, 1e8, 1e11, 1e14]
 #C_VALUES = [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
-C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
+#C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
+C_VALUES = [2**-8, 2**-7, 2**-6,]
 USE_SGD_SVM = True
-
+USE_L2_REGULARIZED_LR = False
+USE_SVMS = True
+USE_WEIGHTED_SVM = (USE_SVMS and True)
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -127,7 +130,7 @@ if __name__=='__main__':
 
     pos, neg, unlabeled_pos = read_swissprot_data()
     # switch cases to use a smaller labeled dataset
-    if 'switch_cases' in locals() and switch_cases:
+    if 'SWITCH_CASES' in locals() and SWITCH_CASES:
         logging.warning('Switching positive and negative datasets!')
         unlabeled_pos, pos = pos, unlabeled_pos 
 
@@ -170,7 +173,6 @@ if __name__=='__main__':
 
         roc_curves = []
 
-        USE_L2_REGULARIZED_LR = False
         if USE_L2_REGULARIZED_LR:
             # alpha here is a regularization constant
             sgd_param_grid = {'alpha': [0.001, 0.0001,],}
@@ -216,8 +218,7 @@ if __name__=='__main__':
         _, curve = fit_and_generate_roc_curve(name, 'r-.', lr, X, y, test_set, test_labels)
         roc_curves.append(curve)
 
-        calculate_svms = True
-        if calculate_svms:
+        if USE_SVMS:
             svm_param_grid = {'C': C_VALUES}
             sgd_svm_param_grid = {'alpha': [0.1, 0.01, 0.001, 0.0001, 0.00001]}
             if USE_SGD_SVM:
@@ -264,8 +265,7 @@ if __name__=='__main__':
             _, curve = fit_and_generate_roc_curve(name, 'g-', biased_svm, X, y, test_set, test_labels)
             roc_curves.append(curve)
 
-            calculate_weighted_svm = True
-            if calculate_weighted_svm:
+            if USE_WEIGHTED_SVM:
                 logging.info('starting weighted SVM...')
                 svm = GridSearchCV(sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
                                    svm_param_grid, cv=3, n_jobs=-1, verbose=3)
@@ -295,7 +295,7 @@ if __name__=='__main__':
             pl.ylim([0.8, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
-        title = 'ROC for Inverted SwissProt' if 'switch_cases' in locals() and not switch_cases else 'ROC for SwissProt'
+        title = 'ROC for Inverted SwissProt' if 'SWITCH_CASES' in locals() and not SWITCH_CASES else 'ROC for SwissProt'
         pl.title(title)
         pl.legend(loc="lower right")
         pl.show()
