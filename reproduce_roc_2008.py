@@ -16,9 +16,9 @@ from fastgridsearch import FastGridSearchCV
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
 C_VALUES = [2**-8, 2**-7, 2**-6,]
-USE_SGD_SVM = True
 USE_L2_REGULARIZED_LR = False
-USE_SVMS = True
+USE_SVMS = False
+USE_SGD_SVM = True
 USE_WEIGHTED_SVM = (USE_SVMS and True)
 
 def read_swissprot_data():
@@ -82,15 +82,13 @@ def fit_and_score(classifier, X, y, test_set, test_labels, sample_weight=None):
     fpr, tpr, roc_auc = calculate_roc(test_labels, probabilities)
     return c, fpr, tpr, roc_auc
 
-def double_weight(X, y, probabilities):
+def double_weight(X, y, probabilities, c):
     assert(probabilities.shape == y.shape)
     positive_indices, unlabeled_indices = (y == 1).nonzero()[0], (y == 0).nonzero()[0]
     positive, unlabeled = X[positive_indices], X[unlabeled_indices]
     upr = probabilities[unlabeled_indices]
     assert len(upr) == unlabeled.shape[0]
 
-    # TODO: do not hard-code
-    c = 0.951
     unlabeled_probabilities = ((1.0 - c) / c) * (upr / (1.0 - upr))
 
     X2 = scipy.sparse.vstack([positive, unlabeled, unlabeled])
@@ -103,11 +101,17 @@ def double_weight(X, y, probabilities):
     X2, y2, sample_weight = sklearn.utils.shuffle(X2, y2, sample_weight)
     return X2, y2, sample_weight
 
-def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels):
-    X2, y2, sample_weight = double_weight(X, y, probabilities)
+def fit_double_weighted(name, color, X, y, probabilities, c, test_set, test_labels,):
+    X2, y2, sample_weight = double_weight(X, y, probabilities, c)
 
     # Learn on an SGD svm learner.
     wsvm = sklearn.linear_model.SGDClassifier(loss='hinge',
+                                                penalty='l2',
+                                                n_iter=200,
+                                                alpha=0.01,
+                                                random_state=0)
+    # logistic regression instead of svm
+    wsvm = sklearn.linear_model.SGDClassifier(loss='log',
                                                 penalty='l2',
                                                 n_iter=200,
                                                 alpha=0.01,
@@ -190,21 +194,29 @@ if __name__=='__main__':
             _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
             roc_curves.append(curve)
 
-        lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,]}
+        lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,],}
 
+        major_case_b = 0.22941573387056188
+        minor_case_b = 4.358898943540673
+        mlr_param_grid = {} #'b': [major_case_b, 1.0, 2.0, 3.0, 4.0, 5.0]}
+        mlr_param_grid.update(lr_param_grid)
         name = 'Modified LR pos-only labels'
         mlr = sklearn.grid_search.GridSearchCV(sgdlr.SGDModifiedLogisticRegression(),
-                                               lr_param_grid, cv=3, n_jobs=-1)
+                                               mlr_param_grid, cv=3, n_jobs=-1)
 
         mlr.fit(X, y)
         logging.info('fit probabilities...')
-        probabilities = mlr.best_estimator_.predict_proba(X)[:,1]
-        _, curve = fit_double_weighted(name, 'r--', X, y, probabilities, test_set, test_labels)
-        roc_curves.append(curve)
-
         b = mlr.best_estimator_.b_
         logging.info('b = %s' % b)
         logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + b**2)))
+
+        probabilities = mlr.best_estimator_.predict_proba(X)[:,1]
+        c = (1.0 / (1.0 + b*b))
+        _, curve = fit_double_weighted(name, 'r--', X, y, 
+                                       probabilities, c,
+                                       test_set, test_labels)
+        roc_curves.append(curve)
+
 
         lr = sklearn.grid_search.GridSearchCV(sgdlr.SGDLogisticRegression(),
                                               lr_param_grid, cv=3, n_jobs=-1)
@@ -274,7 +286,8 @@ if __name__=='__main__':
                 probabilities = svm.best_estimator_.predict_proba(X)[:,1]
                 
                 name = 'Weighted SVM pos-only labels'
-                _, curve = fit_double_weighted(name, 'g--', X, y, probabilities, test_set, test_labels)
+                c = 0.5
+                _, curve = fit_double_weighted(name, 'g--', X, y, probabilities, c, test_set, test_labels)
                 roc_curves.append(curve)
 
         # Plot ROC curve

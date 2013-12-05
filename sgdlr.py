@@ -1,6 +1,7 @@
 import numpy as np
-import logistic
 from sklearn.base import BaseEstimator, ClassifierMixin
+
+import logistic
 
 class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
     """Stochastic Gradient Descent version of logistic regression.
