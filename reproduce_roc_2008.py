@@ -51,12 +51,16 @@ class ROCCurve():
         self.fpr = fpr
         self.tpr = tpr
 
-def fit_and_score(classifier, X, y, test_set, test_labels):
+def fit_and_score(classifier, X, y, test_set, test_labels, sample_weight=None):
     """Fits the classifier to teh data, then tests it and generates a ROC curve.
         name parameter is used for logging.
     """
     # fit
-    classifier.fit(X, y)
+    if sample_weight is not None:
+        classifier.fit(X, y, sample_weight=sample_weight)
+    else:
+        # classifier.fit may not accept sample weight
+        classifier.fit(X, y)
      
     # if this is a grid search, get the best estimator
     c = classifier.best_estimator_ if hasattr(classifier, 'best_estimator_') else classifier
@@ -65,7 +69,7 @@ def fit_and_score(classifier, X, y, test_set, test_labels):
     logging.debug('params: %s' % c.get_params())
     try:
         probabilities = c.predict_proba(test_set)[:,1]
-    except NotImplementedError, e:
+    except NotImplementedError:
         # TODO: This is not Platt scaling, dumb scaling
         scalars = c.decision_function(test_set)
         scalars -= np.min(scalars)
@@ -75,9 +79,40 @@ def fit_and_score(classifier, X, y, test_set, test_labels):
     fpr, tpr, roc_auc = calculate_roc(test_labels, probabilities)
     return c, fpr, tpr, roc_auc
 
-def fit_and_generate_roc_curve(name, color, classifier, X, y, test_set, test_labels):
+def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels):
+    assert(probabilities.shape == y.shape)
+    positive_indices, unlabeled_indices = (y == 1).nonzero()[0], (y == 0).nonzero()[0]
+    positive, unlabeled = X[positive_indices], X[unlabeled_indices]
+    upr = probabilities[unlabeled_indices]
+    assert len(upr) == unlabeled.shape[0]
+
+    # TODO: do not hard-code
+    c = 0.05
+    unlabeled_probabilities = ((1.0 - c) / c) * (upr / (1.0 - upr))
+
+    X2 = scipy.sparse.vstack([positive, unlabeled, unlabeled])
+    y2 = np.hstack([np.array([1.0] * positive.shape[0]),
+                    np.array([1.0] * len(unlabeled_probabilities)),
+                    np.array([0.0] * len(unlabeled_probabilities))])
+    sample_weight = np.concatenate([np.array([1.0] * positive.shape[0]),
+                                    unlabeled_probabilities,
+                                    1.0 - unlabeled_probabilities], axis=1)
+    X2, y2, sample_weight = sklearn.utils.shuffle(X2, y2, sample_weight)
+
+    # Learn on an SGD svm learner.
+    wsvm = sklearn.linear_model.SGDClassifier(loss='hinge',
+                                                penalty='l2',
+                                                n_iter=200,
+                                                alpha=0.01,
+                                                random_state=0)
+    best_wsvm, curve = fit_and_generate_roc_curve(name, color, 
+                                                  wsvm, X2, y2, test_set, test_labels, 
+                                                  sample_weight=sample_weight)
+    return best_wsvm, curve
+
+def fit_and_generate_roc_curve(name, color, classifier, X, y, test_set, test_labels, sample_weight=None):
     logging.info('starting %s...' % name)
-    c, fpr, tpr, roc_auc = fit_and_score(classifier, X, y, test_set, test_labels)
+    c, fpr, tpr, roc_auc = fit_and_score(classifier, X, y, test_set, test_labels, sample_weight=sample_weight)
     logging.info('AUC for %s: %f' % (name, roc_auc))
     return c, ROCCurve(name, color, roc_auc, fpr, tpr)
 
@@ -94,7 +129,7 @@ if __name__=='__main__':
 
     truncate = lambda m: m[:int(m.shape[0] / 30),:]
     # Use less data so that we can move faster, comment this out to use full dataset
-    pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], n_folds=num_folds, shuffle=True, random_state=0))
@@ -152,11 +187,16 @@ if __name__=='__main__':
         name = 'Modified LR pos-only labels'
         mlr = sklearn.grid_search.GridSearchCV(sgdlr.SGDModifiedLogisticRegression(),
                                                lr_param_grid, cv=3, n_jobs=-1)
-        mlr, curve = fit_and_generate_roc_curve(name, 'r--', mlr, X, y, test_set, test_labels)
+
+        mlr.fit(X, y)
+        logging.info('fit probabilities...')
+        probabilities = mlr.best_estimator_.predict_proba(X)[:,1]
+        _, curve = fit_double_weighted(name, 'r--', X, y, probabilities, test_set, test_labels)
         roc_curves.append(curve)
 
-        logging.info('b = %s' % mlr.b_)
-        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + mlr.b_**2)))
+        b = mlr.best_estimator_.b_
+        logging.info('b = %s' % b)
+        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + b**2)))
 
         lr = sklearn.grid_search.GridSearchCV(sgdlr.SGDLogisticRegression(),
                                               lr_param_grid, cv=3, n_jobs=-1)
@@ -181,8 +221,7 @@ if __name__=='__main__':
                                                                     random_state=0),
                                    sgd_svm_param_grid,
                                    cv=3,
-                                   n_jobs=-1,
-                                   verbose=1)
+                                   n_jobs=-1)
             else:
                 svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
                                     sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
@@ -206,8 +245,7 @@ if __name__=='__main__':
                                                                              random_state=0),
                                           biased_svm_param_grid,
                                           cv=3,
-                                          n_jobs=-1,
-                                          verbose=1)
+                                          n_jobs=-1)
             else:
                 biased_svm_param_grid.update(svm_param_grid)
                 biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
@@ -220,17 +258,18 @@ if __name__=='__main__':
             _, curve = fit_and_generate_roc_curve(name, 'g-', biased_svm, X, y, test_set, test_labels)
             roc_curves.append(curve)
 
-            calculate_weighted_svm = False
+            calculate_weighted_svm = True
             if calculate_weighted_svm:
                 logging.info('starting weighted SVM...')
-                # I have to copy to avoid an error that says that svm_weight is not C-contiguous!
-                svm_weight = svm_label_data(X, y, X)[:,1].copy()
-                # now run this again with the probabilites as the weights
-                svm_labels = svm_label_data(X, y, test_set, sample_weight=svm_weight, C=[0.125, 0.25, 0.5, 1.0])
-                fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
+                svm = GridSearchCV(sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
+                                   svm_param_grid, cv=3, n_jobs=-1, verbose=3)
+                svm.fit(X, y)
+                logging.info('fit probabilities...')
+                probabilities = svm.best_estimator_.predict_proba(X)[:,1]
+                
                 name = 'Weighted SVM pos-only labels'
-                roc_curves.append((name, roc_auc, fpr, tpr, 'g--'))
-                logging.info('AUC for %s: %f' % (name, roc_auc))
+                _, curve = fit_double_weighted(name, 'g--', X, y, probabilities, test_set, test_labels)
+                roc_curves.append(curve)
 
         # Plot ROC curve
         import pylab as pl
