@@ -79,7 +79,7 @@ def fit_and_score(classifier, X, y, test_set, test_labels, sample_weight=None):
     fpr, tpr, roc_auc = calculate_roc(test_labels, probabilities)
     return c, fpr, tpr, roc_auc
 
-def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels):
+def double_weight(X, y, probabilities):
     assert(probabilities.shape == y.shape)
     positive_indices, unlabeled_indices = (y == 1).nonzero()[0], (y == 0).nonzero()[0]
     positive, unlabeled = X[positive_indices], X[unlabeled_indices]
@@ -87,7 +87,7 @@ def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels)
     assert len(upr) == unlabeled.shape[0]
 
     # TODO: do not hard-code
-    c = 0.05
+    c = 0.951
     unlabeled_probabilities = ((1.0 - c) / c) * (upr / (1.0 - upr))
 
     X2 = scipy.sparse.vstack([positive, unlabeled, unlabeled])
@@ -98,6 +98,10 @@ def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels)
                                     unlabeled_probabilities,
                                     1.0 - unlabeled_probabilities], axis=1)
     X2, y2, sample_weight = sklearn.utils.shuffle(X2, y2, sample_weight)
+    return X2, y2, sample_weight
+
+def fit_double_weighted(name, color, X, y, probabilities, test_set, test_labels):
+    X2, y2, sample_weight = double_weight(X, y, probabilities)
 
     # Learn on an SGD svm learner.
     wsvm = sklearn.linear_model.SGDClassifier(loss='hinge',
@@ -164,23 +168,25 @@ if __name__=='__main__':
         X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
-        # alpha here is a regularization constant
-        sgd_param_grid = {'alpha': [0.001, 0.0001,],}
-
         roc_curves = []
 
-        # sci-kit learn's sgd classifier
-        name = 'L2-regularized LR pos-only labels'
-        sgd = sklearn.grid_search.GridSearchCV(sklearn.linear_model.SGDClassifier(loss='log',
-                                                                                  n_iter=200,
-                                                                                  random_state=2),
-                                               sgd_param_grid, cv=3, n_jobs=-1)
-        _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y, test_set, test_labels)
-        roc_curves.append(curve)
+        USE_L2_REGULARIZED_LR = False
+        if USE_L2_REGULARIZED_LR:
+            # alpha here is a regularization constant
+            sgd_param_grid = {'alpha': [0.001, 0.0001,],}
 
-        name = 'L2-regularized LR true labels'
-        _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
-        roc_curves.append(curve)
+            # sci-kit learn's sgd classifier
+            name = 'L2-regularized LR pos-only labels'
+            sgd = sklearn.grid_search.GridSearchCV(sklearn.linear_model.SGDClassifier(loss='log',
+                                                                                    n_iter=200,
+                                                                                    random_state=2),
+                                                sgd_param_grid, cv=3, n_jobs=-1)
+            _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y, test_set, test_labels)
+            roc_curves.append(curve)
+
+            name = 'L2-regularized LR true labels'
+            _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
+            roc_curves.append(curve)
 
         lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,]}
 
@@ -289,7 +295,8 @@ if __name__=='__main__':
             pl.ylim([0.8, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
-        pl.title('ROC for SwissProt')
+        title = 'ROC for Inverted SwissProt' if 'switch_cases' in locals() and not switch_cases else 'ROC for SwissProt'
+        pl.title(title)
         pl.legend(loc="lower right")
         pl.show()
 
