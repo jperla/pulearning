@@ -4,6 +4,7 @@ import functools
 
 import scipy
 import sklearn
+from sklearn.grid_search import GridSearchCV
 import numpy as np
 
 import sgdlr
@@ -14,6 +15,8 @@ from fastgridsearch import FastGridSearchCV
 #C_VALUES = [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
 C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
+USE_SGD_SVM = True
+
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -60,16 +63,23 @@ def fit_and_score(classifier, X, y, test_set, test_labels):
 
     # predict
     logging.debug('params: %s' % c.get_params())
-    probabilities = c.predict_proba(test_set)[:,1]
+    try:
+        probabilities = c.predict_proba(test_set)[:,1]
+    except NotImplementedError, e:
+        # TODO: This is not Platt scaling, dumb scaling
+        scalars = c.decision_function(test_set)
+        scalars -= np.min(scalars)
+        probabilities = scalars / np.max(scalars)
 
     # calculate ROC
-    return calculate_roc(test_labels, probabilities)
+    fpr, tpr, roc_auc = calculate_roc(test_labels, probabilities)
+    return c, fpr, tpr, roc_auc
 
 def fit_and_generate_roc_curve(name, color, classifier, X, y, test_set, test_labels):
     logging.info('starting %s...' % name)
-    fpr, tpr, roc_auc = fit_and_score(classifier, X, y, test_set, test_labels)
+    c, fpr, tpr, roc_auc = fit_and_score(classifier, X, y, test_set, test_labels)
     logging.info('AUC for %s: %f' % (name, roc_auc))
-    return ROCCurve(name, color, roc_auc, fpr, tpr)
+    return c, ROCCurve(name, color, roc_auc, fpr, tpr)
 
 if __name__=='__main__':
     FORMAT = '%(asctime)-15s %(message)s'
@@ -84,7 +94,7 @@ if __name__=='__main__':
 
     truncate = lambda m: m[:int(m.shape[0] / 30),:]
     # Use less data so that we can move faster, comment this out to use full dataset
-    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], n_folds=num_folds, shuffle=True, random_state=0))
@@ -119,72 +129,95 @@ if __name__=='__main__':
         X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
-        lr_param_grid = {'alpha': [0.1, 0.01, 0.001], 'n_iter': [10, 30, 100, 200, 400, 1000]}
+        # alpha here is a regularization constant
+        sgd_param_grid = {'alpha': [0.001, 0.0001,],}
 
         roc_curves = []
 
         # sci-kit learn's sgd classifier
-        name = 'Sci-Kit SGD LR L2-regularized pos-only labels'
+        name = 'L2-regularized LR pos-only labels'
         sgd = sklearn.grid_search.GridSearchCV(sklearn.linear_model.SGDClassifier(loss='log',
-                                                                                  penalty='l2',
+                                                                                  n_iter=200,
                                                                                   random_state=2),
-                                               lr_param_grid, cv=3, n_jobs=-1)
-        curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y, test_set, test_labels)
+                                               sgd_param_grid, cv=3, n_jobs=-1)
+        _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y, test_set, test_labels)
         roc_curves.append(curve)
 
-        name = 'Sci-Kit SGD LR L2-regularized true labels'
-        curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
+        name = 'L2-regularized LR true labels'
+        _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
         roc_curves.append(curve)
 
-        max_iter = 200
+        lr_param_grid = {'alpha': [0.01, 0.001,], 'n_iter':[200,]}
+
         name = 'Modified LR pos-only labels'
-        mlr = sgdlr.SGDModifiedLogisticRegression(alpha=0.01, n_iter=max_iter)
-        curve = fit_and_generate_roc_curve(name, 'r--', mlr, X, y, test_set, test_labels)
+        mlr = sklearn.grid_search.GridSearchCV(sgdlr.SGDModifiedLogisticRegression(),
+                                               lr_param_grid, cv=3, n_jobs=-1)
+        mlr, curve = fit_and_generate_roc_curve(name, 'r--', mlr, X, y, test_set, test_labels)
         roc_curves.append(curve)
 
-        '''
         logging.info('b = %s' % mlr.b_)
         logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + mlr.b_**2)))
-        '''
 
         lr = sklearn.grid_search.GridSearchCV(sgdlr.SGDLogisticRegression(),
                                               lr_param_grid, cv=3, n_jobs=-1)
 
         # Baseline if we knew everything
         name = 'LR true labels'
-        curve = fit_and_generate_roc_curve(name, 'r-', lr, X, y_labeled, test_set, test_labels)
+        _, curve = fit_and_generate_roc_curve(name, 'r-', lr, X, y_labeled, test_set, test_labels)
         roc_curves.append(curve)
 
         name = 'LR pos-only labels'
-        curve = fit_and_generate_roc_curve(name, 'r-.', lr, X, y, test_set, test_labels)
+        _, curve = fit_and_generate_roc_curve(name, 'r-.', lr, X, y, test_set, test_labels)
         roc_curves.append(curve)
 
-        calculate_svms = False
+        calculate_svms = True
         if calculate_svms:
-            param_grid = {'C': C_VALUES}
-            svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                   sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
-                                   param_grid,
+            svm_param_grid = {'C': C_VALUES}
+            sgd_svm_param_grid = {'alpha': [0.1, 0.01, 0.001, 0.0001, 0.00001]}
+            if USE_SGD_SVM:
+                svm = GridSearchCV(sklearn.linear_model.SGDClassifier(loss='hinge', 
+                                                                    penalty='l2', 
+                                                                    n_iter=200, 
+                                                                    random_state=0),
+                                   sgd_svm_param_grid,
                                    cv=3,
                                    n_jobs=-1,
                                    verbose=1)
-            curve = fit_and_generate_roc_curve('SVM pos-only labels', 'b-.', svm, X, y, test_set, test_labels)
+            else:
+                svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
+                                    sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
+                                    svm_param_grid,
+                                    cv=3,
+                                    n_jobs=-1,
+                                    verbose=1)
+            _, curve = fit_and_generate_roc_curve('SVM pos-only labels', 'b-.', svm, X, y, test_set, test_labels)
             roc_curves.append(curve)
 
-            curve = fit_and_generate_roc_curve('SVM true labels', 'b-', svm, X, y_labeled, test_set, test_labels)
+            _, curve = fit_and_generate_roc_curve('SVM true labels', 'b-', svm, X, y_labeled, test_set, test_labels)
             roc_curves.append(curve)
 
-            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0},
-                                                      {0: 1.0, 1: 2.0},
-                                                      {0: 1.0, 1: 10.0}]}
-            biased_svm_param_grid.update(param_grid)
-            biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                          sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
+            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0},] + [{0: 1.0, 1: 2.0},] +[{0: 1.0, 1: (i * 10.0)} for i in range(1, 21)],}
+            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 2.0},] +[{0: 1.0, 1: (i * 10.0)} for i in range(1, 3)],}
+            if USE_SGD_SVM:
+                biased_svm_param_grid.update(sgd_svm_param_grid)
+                biased_svm = GridSearchCV(sklearn.linear_model.SGDClassifier(loss='hinge',
+                                                                             penalty='l2',
+                                                                             n_iter=200,
+                                                                             random_state=0),
                                           biased_svm_param_grid,
                                           cv=3,
                                           n_jobs=-1,
                                           verbose=1)
-            curve = fit_and_generate_roc_curve(name, 'g-', biased_svm, X, y_labeled, test_set, test_labels)
+            else:
+                biased_svm_param_grid.update(svm_param_grid)
+                biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
+                                            sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
+                                            biased_svm_param_grid,
+                                            cv=3,
+                                            n_jobs=-1,
+                                            verbose=1)
+            name = 'Biased SVM pos-only labels'
+            _, curve = fit_and_generate_roc_curve(name, 'g-', biased_svm, X, y, test_set, test_labels)
             roc_curves.append(curve)
 
             calculate_weighted_svm = False
@@ -213,8 +246,8 @@ if __name__=='__main__':
             pl.xlim([0.0, 1.0])
             pl.ylim([0.0, 1.0])
         else:
-            pl.xlim([0.0, 0.3])
-            pl.ylim([0.7, 1.0])
+            pl.xlim([0.0, 0.2])
+            pl.ylim([0.8, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
         pl.title('ROC for SwissProt')
