@@ -84,9 +84,9 @@ if __name__=='__main__':
         logging.warning('Switching positive and negative datasets!')
         unlabeled_pos, pos = pos, unlabeled_pos 
 
+    truncate = lambda m: m[:int(m.shape[0] / 30),:]
     # Use less data so that we can move faster, comment this out to use full dataset
-    #truncate = lambda m: m[:int(m.shape[0] / 30),:]
-    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], n_folds=num_folds, shuffle=True, random_state=0))
@@ -194,7 +194,7 @@ if __name__=='__main__':
         roc_curves.append((name, roc_auc, fpr, tpr, 'r-.'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
-        calculate_svms = True
+        calculate_svms = False
         if calculate_svms:
             logging.info('starting SVM on pos-only data...')
             svm_labels = svm_label_data(X, y, test_set)
