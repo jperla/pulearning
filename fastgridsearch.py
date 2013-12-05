@@ -12,8 +12,8 @@ class FastGridSearchCV(GridSearchCV):
         self.best_fit_estimator = best_fit_estimator
         super(FastGridSearchCV, self).__init__(estimator, param_grid, **kwargs)
 
-    def _fit(self, X, y):
-        super(FastGridSearchCV, self)._fit(X, y)
+    def _fit(self, X, y, parameter_iterable, **keywords):
+        super(FastGridSearchCV, self)._fit(X, y, parameter_iterable, **keywords)
 
         if self.refit:
             best_estimator = clone(self.best_fit_estimator).set_params(

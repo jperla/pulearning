@@ -8,6 +8,7 @@ import numpy as np
 
 import sgdlr
 import logistic
+from fastgridsearch import FastGridSearchCV
 
 #C_VALUES = [0.01, 0.1]
 #C_VALUES = [1e-13, 1e-10, 1e-7, 1e-4, 1e-1, 1e2, 1e5, 1e8, 1e11, 1e14]
@@ -52,7 +53,7 @@ def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sampl
             svm = sklearn.svm.LinearSVC(C=c, class_weight={0: 1.0, 1: cp / c})
             svm.probability = True
             scores = sklearn.cross_validation.cross_val_score(svm, train_set, train_labels, 
-                                                              cv=3, n_jobs=6,
+                                                              cv=3, n_jobs=-1,
                                                               #scoring='roc_auc',
                                        )#                       fit_params={'sample_weight': sample_weight})
             accuracy = scores.mean()
@@ -194,10 +195,18 @@ if __name__=='__main__':
         roc_curves.append((name, roc_auc, fpr, tpr, 'r-.'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
-        calculate_svms = False
+        calculate_svms = True
         if calculate_svms:
+            param_grid = {'C': C_VALUES}
+            svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
+                                   sklearn.svm.SVC(probability=True),
+                                   param_grid,
+                                   cv=3,
+                                   n_jobs=-1,
+                                   verbose=3)
             logging.info('starting SVM on pos-only data...')
-            svm_labels = svm_label_data(X, y, test_set)
+            svm.fit(X, y)
+            svm_labels = svm.predict_proba(test_set)
             fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
             name = 'SVM pos-only labels'
             roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
