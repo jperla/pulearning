@@ -45,8 +45,6 @@ if __name__=='__main__':
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
     logging.getLogger().setLevel(logging.DEBUG)
 
-    max_key = 24081
-
     pos, neg, unlabeled_pos = read_swissprot_data()
     # switch cases to use a smaller labeled dataset
     if 'switch_cases' in locals() and switch_cases:
@@ -121,7 +119,6 @@ if __name__=='__main__':
         roc_curves.append((name, roc_auc, fpr, tpr, 'p-'))
         logging.info('AUC for %s: %f' % (name, roc_auc))
 
-        # Baseline if we knew everything
         max_iter = 10
         logging.info('starting modified LR on pos-only data...')
         mlr = sgdlr.SGDModifiedLogisticRegression(alpha=0.01, n_iter=max_iter)
@@ -139,6 +136,7 @@ if __name__=='__main__':
 
         lr = sgdlr.SGDLogisticRegression(alpha=0.01, n_iter=max_iter)
 
+        # Baseline if we knew everything
         logging.info('starting LR on totally labeled data...')
         lr.fit(X, y_labeled)
         logging.info('done LR')
@@ -173,14 +171,14 @@ if __name__=='__main__':
                                    verbose=1)
             logging.info('starting SVM on pos-only data...')
             svm.fit(X, y)
-            svm_labels = svm.predict_proba(test_set)
+            svm_labels = svm.best_estimator_.predict_proba(test_set)
             fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
             name = 'SVM pos-only labels'
             roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
             logging.info('AUC for %s: %f' % (name, roc_auc))
 
             logging.info('starting SVM on true labels...')
-            svm_labels = svm.fit(X, y_labeled).predict_proba(test_set)
+            svm_labels = svm.fit(X, y_labeled).best_estimator_.predict_proba(test_set)
             fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
             name = 'SVM true labels'
             roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
@@ -198,7 +196,7 @@ if __name__=='__main__':
                                           n_jobs=-1,
                                           verbose=3)
             biased_svm.fit(X, y)
-            svm_labels = biased_svm.predict_proba(test_set)
+            svm_labels = biased_svm.best_estimator_.predict_proba(test_set)
             fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
             name = 'Biased SVM pos-only labels'
             roc_curves.append((name, roc_auc, fpr, tpr, 'g-'))
@@ -234,7 +232,7 @@ if __name__=='__main__':
             pl.ylim([0.7, 1.0])
         pl.xlabel('False Positive Rate')
         pl.ylabel('True Positive Rate')
-        pl.title('ROC for Protein Datasets')
+        pl.title('ROC for SwissProt')
         pl.legend(loc="lower right")
         pl.show()
 
