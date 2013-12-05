@@ -40,6 +40,37 @@ def calculate_roc(true_labels, estimated_labels):
     roc_auc = sklearn.metrics.auc(fpr, tpr)
     return fpr, tpr, roc_auc
 
+class ROCCurve():
+    def __init__(self, name, color, roc_auc, fpr, tpr):
+        self.name = name
+        self.color = color
+        self.roc_auc = roc_auc
+        self.fpr = fpr
+        self.tpr = tpr
+
+def fit_and_score(classifier, X, y, test_set, test_labels):
+    """Fits the classifier to teh data, then tests it and generates a ROC curve.
+        name parameter is used for logging.
+    """
+    # fit
+    classifier.fit(X, y)
+     
+    # if this is a grid search, get the best estimator
+    c = classifier.best_estimator_ if hasattr(classifier, 'best_estimator_') else classifier
+
+    # predict
+    logging.debug('params: %s' % c.get_params())
+    probabilities = c.predict_proba(test_set)[:,1]
+
+    # calculate ROC
+    return calculate_roc(test_labels, probabilities)
+
+def fit_and_generate_roc_curve(name, color, classifier, X, y, test_set, test_labels):
+    logging.info('starting %s...' % name)
+    fpr, tpr, roc_auc = fit_and_score(classifier, X, y, test_set, test_labels)
+    logging.info('AUC for %s: %f' % (name, roc_auc))
+    return ROCCurve(name, color, roc_auc, fpr, tpr)
+
 if __name__=='__main__':
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -88,119 +119,73 @@ if __name__=='__main__':
         X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
+        lr_param_grid = {'alpha': [0.1, 0.01, 0.001], 'n_iter': [10, 30, 100, 200, 400, 1000]}
+
         roc_curves = []
 
         # sci-kit learn's sgd classifier
         name = 'Sci-Kit SGD LR L2-regularized pos-only labels'
-        logging.info('starting %s on pos-only data...' % name)
-        sgd = sklearn.linear_model.SGDClassifier(loss='log', 
-                                                penalty='l2', 
-                                                alpha=0.001,
-                                                random_state=2,
-                                                n_iter=200)
-        sgd.fit(X, y)
-        sgd_labels = sgd.predict_proba(test_set)[:,1]
-        logging.info('done %s: %s' % (name, np.max(np.abs(sgd.coef_))))
-        fpr, tpr, roc_auc = calculate_test_roc(sgd_labels)
-        roc_curves.append((name, roc_auc, fpr, tpr, 'p-'))
-        logging.info('AUC for %s: %f' % (name, roc_auc))
+        sgd = sklearn.grid_search.GridSearchCV(sklearn.linear_model.SGDClassifier(loss='log',
+                                                                                  penalty='l2',
+                                                                                  random_state=2),
+                                               lr_param_grid, cv=3, n_jobs=-1)
+        curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y, test_set, test_labels)
+        roc_curves.append(curve)
 
         name = 'Sci-Kit SGD LR L2-regularized true labels'
-        logging.info('starting %s on pos-only data...' % name)
-        sgd = sklearn.linear_model.SGDClassifier(loss='log', 
-                                                penalty='l2', 
-                                                alpha=0.001,
-                                                random_state=2,
-                                                n_iter=200)
-        sgd.fit(X, y_labeled)
-        sgd_labels = sgd.predict_proba(test_set)[:,1]
-        logging.info('done %s: %s' % (name, np.max(np.abs(sgd.coef_))))
-        fpr, tpr, roc_auc = calculate_test_roc(sgd_labels)
-        roc_curves.append((name, roc_auc, fpr, tpr, 'p-'))
-        logging.info('AUC for %s: %f' % (name, roc_auc))
+        curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
+        roc_curves.append(curve)
 
-        max_iter = 10
-        logging.info('starting modified LR on pos-only data...')
+        max_iter = 200
+        name = 'Modified LR pos-only labels'
         mlr = sgdlr.SGDModifiedLogisticRegression(alpha=0.01, n_iter=max_iter)
-        mlr.fit(X, y)
-        logging.info('done training Modified LR on pos-only data: %s' % (np.max(np.abs(mlr.theta_))))
-        modified_regression_labels = mlr.predict_proba(test_set)
+        curve = fit_and_generate_roc_curve(name, 'r--', mlr, X, y, test_set, test_labels)
+        roc_curves.append(curve)
 
+        '''
         logging.info('b = %s' % mlr.b_)
         logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + mlr.b_**2)))
-        # Compute ROC curve and area the curve
-        fpr, tpr, roc_auc = calculate_test_roc(modified_regression_labels)
-        name = 'Modified LR pos-only labels'
-        roc_curves.append((name, roc_auc, fpr, tpr, 'r--'))
-        logging.info('AUC for %s: %f' % (name, roc_auc))
+        '''
 
-        lr = sgdlr.SGDLogisticRegression(alpha=0.01, n_iter=max_iter)
+        lr = sklearn.grid_search.GridSearchCV(sgdlr.SGDLogisticRegression(),
+                                              lr_param_grid, cv=3, n_jobs=-1)
 
         # Baseline if we knew everything
-        logging.info('starting LR on totally labeled data...')
-        lr.fit(X, y_labeled)
-        logging.info('done LR')
-        baseline_labels = lr.predict_proba(test_set)
-
-        # calculate the parameters
-        logging.info('starting LR on pos-only data...')
-        lr.fit(X, y)
-        logging.info('done LR')
-        regression_labels = lr.predict_proba(test_set)
-
-        # Compute ROC curve and area the curve
-        fpr, tpr, roc_auc = calculate_test_roc(baseline_labels)
         name = 'LR true labels'
-        roc_curves.append((name, roc_auc, fpr, tpr, 'r-'))
-        logging.info('AUC for %s: %f' % (name, roc_auc))
+        curve = fit_and_generate_roc_curve(name, 'r-', lr, X, y_labeled, test_set, test_labels)
+        roc_curves.append(curve)
 
-        # Compute ROC curve and area the curve
-        fpr, tpr, roc_auc = calculate_test_roc(regression_labels)
         name = 'LR pos-only labels'
-        roc_curves.append((name, roc_auc, fpr, tpr, 'r-.'))
-        logging.info('AUC for %s: %f' % (name, roc_auc))
+        curve = fit_and_generate_roc_curve(name, 'r-.', lr, X, y, test_set, test_labels)
+        roc_curves.append(curve)
 
-        calculate_svms = True
+        calculate_svms = False
         if calculate_svms:
             param_grid = {'C': C_VALUES}
             svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                   sklearn.svm.SVC(probability=True, cache_size=2000),
+                                   sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
                                    param_grid,
                                    cv=3,
                                    n_jobs=-1,
                                    verbose=1)
-            logging.info('starting SVM on pos-only data...')
-            svm.fit(X, y)
-            svm_labels = svm.best_estimator_.predict_proba(test_set)
-            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-            name = 'SVM pos-only labels'
-            roc_curves.append((name, roc_auc, fpr, tpr, 'b-.'))
-            logging.info('AUC for %s: %f' % (name, roc_auc))
+            curve = fit_and_generate_roc_curve('SVM pos-only labels', 'b-.', svm, X, y, test_set, test_labels)
+            roc_curves.append(curve)
 
-            logging.info('starting SVM on true labels...')
-            svm_labels = svm.fit(X, y_labeled).best_estimator_.predict_proba(test_set)
-            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-            name = 'SVM true labels'
-            roc_curves.append((name, roc_auc, fpr, tpr, 'b-'))
-            logging.info('AUC for %s: %f' % (name, roc_auc))
+            curve = fit_and_generate_roc_curve('SVM true labels', 'b-', svm, X, y_labeled, test_set, test_labels)
+            roc_curves.append(curve)
 
-            logging.info('starting Biased SVM...')
             biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0},
                                                       {0: 1.0, 1: 2.0},
                                                       {0: 1.0, 1: 10.0}]}
             biased_svm_param_grid.update(param_grid)
             biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                          sklearn.svm.SVC(probability=True, cache_size=2000),
+                                          sklearn.svm.SVC(kernel='linear', probability=True, cache_size=2000),
                                           biased_svm_param_grid,
                                           cv=3,
                                           n_jobs=-1,
-                                          verbose=3)
-            biased_svm.fit(X, y)
-            svm_labels = biased_svm.best_estimator_.predict_proba(test_set)
-            fpr, tpr, roc_auc = calculate_test_roc(svm_labels[:,1])
-            name = 'Biased SVM pos-only labels'
-            roc_curves.append((name, roc_auc, fpr, tpr, 'g-'))
-            logging.info('AUC for %s: %f' % (name, roc_auc))
+                                          verbose=1)
+            curve = fit_and_generate_roc_curve(name, 'g-', biased_svm, X, y_labeled, test_set, test_labels)
+            roc_curves.append(curve)
 
             calculate_weighted_svm = False
             if calculate_weighted_svm:
@@ -218,12 +203,12 @@ if __name__=='__main__':
         import pylab as pl
         pl.clf()
 
-        sorted_roc_curves = list(reversed(sorted(roc_curves, key=lambda a: a[1])))
-        for (name, roc_auc, fpr, tpr, color) in sorted_roc_curves:
-            pl.plot(fpr, tpr, color, label='%s (AUC = %0.4f)' % (name, roc_auc))
+        sorted_roc_curves = list(reversed(sorted(roc_curves, key=lambda c: c.roc_auc)))
+        for c in sorted_roc_curves:
+            pl.plot(c.fpr, c.tpr, c.color, label='%s (AUC = %0.4f)' % (c.name, c.roc_auc))
 
         pl.plot([0, 1], [0, 1], 'k--')
-        if sorted_roc_curves[-1][1] < 0.8:
+        if sorted_roc_curves[-1].roc_auc < 0.8:
             # show the full curve if there are low roc_auc
             pl.xlim([0.0, 1.0])
             pl.ylim([0.0, 1.0])

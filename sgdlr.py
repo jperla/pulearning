@@ -21,7 +21,8 @@ class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
         return logistic.label_data(X, self.theta_, binarize=True)
 
     def predict_proba(self, X):
-        return logistic.label_data(X, self.theta_, binarize=False)
+        a = logistic.label_data(X, self.theta_, binarize=False)
+        return np.vstack([1.0 - a, a]).T
 
 class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
     """Same as SGD Logistic Regression, but adds a b**2 value 
@@ -44,6 +45,7 @@ class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
         return logistic.label_data(X, self.theta_, self.b_**2, binarize=True)
 
     def predict_proba(self, X):
-        return logistic.label_data(X, self.theta_, self.b_**2, binarize=False)
+        a = logistic.label_data(X, self.theta_, self.b_**2, binarize=False)
+        return np.vstack([1.0 - a, a]).T
 
 

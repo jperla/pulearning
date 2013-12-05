@@ -39,7 +39,7 @@ def label_data(data, theta, normalizer=0.0, binarize=True):
     #s = logistic_sigmoid(np.dot(data, theta), normalizer)
     s = logistic_sigmoid(data.dot(theta[1:]) + theta[0], normalizer)
     if binarize:
-        s = np.array([(1 if a > 0.5 else 0) for a in s])
+        s = np.array([(1 if a >= 0.5 else 0) for a in s])
     return s
 
 
