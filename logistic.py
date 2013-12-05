@@ -79,10 +79,18 @@ def switch_array(array, dense_func, sparse_func):
         return sparse_func()
     else:
         raise Exception("Unknown array datatype")
+
+DEFAULT_B = 1.0
     
-def lbfgs_modified_logistic_regression(X, y, b=1.0):
+def lbfgs_modified_logistic_regression(X, y, b=None):
     """Same as modified LR, but solved using lbfgs."""
     X, theta, N, M = prepend_and_vars(X)
+
+    if b is None:
+        fix_b, b = False, DEFAULT_B
+    else:
+        fix_b, b = True, b
+
     def f(w, g, X, y):
         """Accepts x, and g.  Returns value at x, and gradient at g.
         """
@@ -97,7 +105,8 @@ def lbfgs_modified_logistic_regression(X, y, b=1.0):
         
         dLdw = (p * ewx).reshape((X.shape[0], 1)) * X
 
-        w[0] = np.sum(-2 * b * p)
+        if not fix_b:
+            w[0] = np.sum(-2 * b * p)
         w[1:] = np.sum(dLdw, axis=0)
         return value
     import lbfgs
@@ -107,20 +116,25 @@ def lbfgs_modified_logistic_regression(X, y, b=1.0):
     return theta, b
 
 
-def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0):
+def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA0):
     """Same but uses Cython."""
     X, theta, N, M = prepend_and_vars(X)
 
     S = np.array(S, dtype=float)
     
+    if b is None:
+        fix_b, b = False, DEFAULT_B
+    else:
+        fix_b, b = True, b
+
     b = switch_array(X,
-                lambda: clogistic.modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b),
-                lambda: clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b))
+                lambda: clogistic.modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b, fix_b=fix_b),
+                lambda: clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b, fix_b=fix_b))
 
 
     return theta, b
 
-def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0, i=0):
+def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA0, i=0):
     """Accepts same as logistic regression.
         Returns 2-tuple of weights theta, and also upper bound variable b.
         Returns (theta, b).
@@ -129,6 +143,11 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0
                 to the Positive and Unlabeled Learning Problem by Jaskie."
     """
     X, theta, N, M = prepend_and_vars(X)
+    
+    if b is None:
+        fix_b, b = False, DEFAULT_B
+    else:
+        fix_b, b = True, b
 
     assert S.shape[0] == N
 
@@ -154,7 +173,8 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0
             #assert isinstance(dLdb, float)
 
             theta = theta + (l * dLdw)
-            b = b + ((l) * dLdb)
+            if not fix_b:
+                b = b + ((l) * dLdb)
 
         print t, (1.0 / (1.0 + (b * b)))
         if t % 10 == 0:

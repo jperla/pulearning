@@ -6,6 +6,7 @@ import numpy as np
 
 cimport numpy as np
 cimport cython
+from cpython cimport bool
 
 import sparse
 
@@ -69,6 +70,7 @@ def modified_logistic_regression(
                         double eta0, 
                         int max_iter,
                         double b,
+                        bool fix_b,
                        ):
     """Cython version of stochastic gradient descent of 
         logistic regression
@@ -80,6 +82,7 @@ def modified_logistic_regression(
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
                   M is dimensionality of data.
+        Accepts fix_b which if True, will not change regularizer b with each update.
     """
     cdef double s, wx, ewx, b2ewx, p, dLdb, dLdw, pewx
     cdef double lambda_
@@ -97,8 +100,9 @@ def modified_logistic_regression(
 
             p = ((S[r] - 1.0) / b2ewx) + (1.0 / (1.0 + b2ewx))
 
-            dLdb = -2 * p * b
-            b = b + ((lambda_) * dLdb)
+            if not fix_b:
+                dLdb = -2 * p * b
+                b = b + ((lambda_) * dLdb)
 
             pewx = p * ewx
             for m in range(M):
@@ -118,6 +122,7 @@ def sparse_modified_logistic_regression(
                         double eta0, 
                         int max_iter,
                         double b,
+                        bool fix_b,
                        ):
     """Same as non-sparse but uses a faster sparse matrix.
     """
@@ -151,8 +156,9 @@ def sparse_modified_logistic_regression(
 
             p = ((S[r] - 1.0) / b2ewx) + (1.0 / (1.0 + b2ewx))
 
-            dLdb = -2 * p * b
-            b = b + ((lambda_) * dLdb)
+            if not fix_b:
+                dLdb = -2 * p * b
+                b = b + ((lambda_) * dLdb)
 
             pewx = p * ewx
             for index in range(c, d):
