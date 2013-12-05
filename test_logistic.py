@@ -15,16 +15,16 @@ def test_manual_standard_logistic_regression():
 
 
     for i in xrange(40):
-        theta = logistic.logistic_gradient_descent(X, y, max_iter=i, alpha=0.1)
-        thetaFast = logistic.fast_logistic_gradient_descent(X, y, max_iter=i, alpha=0.1)
+        theta = logistic.logistic_gradient_descent(X, y, max_iter=i, eta0=0.1)
+        thetaFast = logistic.fast_logistic_gradient_descent(X, y, max_iter=i, eta0=0.1)
 
-        thetaM, b = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
+        thetaM, b = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, eta0=0.1)
         assert b == 0.0
-        thetaMFast, b = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, alpha=0.1)
+        thetaMFast, b = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=0.0, eta0=0.1)
         assert b == 0.0
 
-        thetaSparse = logistic.fast_logistic_gradient_descent(Xsparse, y, max_iter=i, alpha=0.1)
-        thetaMSparse, b = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=0.0, alpha=0.1)
+        thetaSparse = logistic.fast_logistic_gradient_descent(Xsparse, y, max_iter=i, eta0=0.1)
+        thetaMSparse, b = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=0.0, eta0=0.1)
         assert b == 0.0
 
         close = partial(np.allclose, rtol=0.01, atol=0.0001)
@@ -58,9 +58,9 @@ def test_manual_standard_logistic_regression():
 
     for i in xrange(40):
         # make sure C version is same as other version
-        thetaM, bM = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
-        thetaMFast, bMFast = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, alpha=0.01)
-        thetaMSparse, bMSparse = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=1.0, alpha=0.01)
+        thetaM, bM = logistic.modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, eta0=0.01)
+        thetaMFast, bMFast = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=i, b=1.0, eta0=0.01)
+        thetaMSparse, bMSparse = logistic.fast_modified_logistic_gradient_descent(Xsparse, y, max_iter=i, b=1.0, eta0=0.01)
 
         assert np.allclose(thetaM, thetaMFast)
         assert np.allclose(thetaM, thetaMSparse)

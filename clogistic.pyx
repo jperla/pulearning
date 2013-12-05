@@ -31,7 +31,7 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
                         np.ndarray[DTYPE_t, ndim=1] y not None, 
                         int N,
                         int M,
-                        double alpha, 
+                        double eta0, 
                         int max_iter, 
                         ):
     """Cython version of stochastic gradient descent of 
@@ -39,7 +39,7 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
 
         Accepts parameters theta which will be modified in place.
         Accepts max_iter number of times to loop.
-        Accepts alpha learning rate double.
+        Accepts eta0 learning rate double.
         Accepts X which is a numpy array, an (N,M) array
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
@@ -48,7 +48,7 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
     cdef double wx, hx, z, lambda_
     cdef int t, r, m
     for t in range(0, max_iter):
-        lambda_ = alpha / (1.0 + t)
+        lambda_ = eta0 / (1.0 + t)
         for r in range(N):
             wx = 0.0
             for m in range(M):
@@ -66,7 +66,7 @@ def modified_logistic_regression(
                         np.ndarray[DTYPE_t, ndim=1] S not None, 
                         int N, 
                         int M,
-                        double alpha, 
+                        double eta0, 
                         int max_iter,
                         double b,
                        ):
@@ -75,7 +75,7 @@ def modified_logistic_regression(
 
         Accepts parameters theta which will be modified in place.
         Accepts max_iter number of times to loop.
-        Accepts alpha learning rate double.
+        Accepts eta0 learning rate double.
         Accepts X which is a numpy array, an (N,M) array
             and an array y which is an (N,1) aray and
             where N is the number of rows, and 
@@ -86,7 +86,7 @@ def modified_logistic_regression(
     cdef int t, r, m
 
     for t in range(0, max_iter):
-        lambda_ = alpha / (1.0 + t)
+        lambda_ = eta0 / (1.0 + t)
         for r in range(N):
             wx = 0.0
             for m in range(M):
@@ -115,7 +115,7 @@ def sparse_modified_logistic_regression(
                         np.ndarray[DTYPE_t, ndim=1] S not None, 
                         int N, 
                         int M,
-                        double alpha, 
+                        double eta0, 
                         int max_iter,
                         double b,
                        ):
@@ -136,7 +136,7 @@ def sparse_modified_logistic_regression(
     data, indices, indptr = sparseX.data, sparseX.indices, sparseX.indptr
 
     for t in range(0, max_iter):
-        lambda_ = alpha / (1.0 + t)
+        lambda_ = eta0 / (1.0 + t)
         for r in range(N):
             wx = 0.0
             c = indptr[r]
@@ -169,7 +169,7 @@ def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
                         np.ndarray[DTYPE_t, ndim=1] y not None, 
                         int N, 
                         int M,
-                        double alpha, 
+                        double eta0, 
                         int max_iter, 
                         ):
     """Same as non-sparse but uses a faster sparse matrix.
@@ -187,7 +187,7 @@ def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
     data, indices, indptr = sparseX.data, sparseX.indices, sparseX.indptr
     index = 0
     for t in range(0, max_iter):
-        lambda_  = alpha / (1.0 + t)
+        lambda_  = eta0 / (1.0 + t)
         for r in range(N):
             wx = 0.0
             c = indptr[r]

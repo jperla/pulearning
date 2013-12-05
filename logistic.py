@@ -47,7 +47,7 @@ def label_data(data, theta, normalizer=0.0, binarize=True):
 # Standard Stochastic Logistic Regression 
 ###########################################
 
-ALPHA = 0.1
+ETA0 = 0.1
 MAX_ITER = 100
 
 
@@ -107,20 +107,20 @@ def lbfgs_modified_logistic_regression(X, y, b=1.0):
     return theta, b
 
 
-def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA):
+def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0):
     """Same but uses Cython."""
     X, theta, N, M = prepend_and_vars(X)
 
     S = np.array(S, dtype=float)
     
     b = switch_array(X,
-                lambda: clogistic.modified_logistic_regression(theta, X, S, N, M, alpha, max_iter, b),
-                lambda: clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, alpha, max_iter, b))
+                lambda: clogistic.modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b),
+                lambda: clogistic.sparse_modified_logistic_regression(theta, X, S, N, M, eta0, max_iter, b))
 
 
     return theta, b
 
-def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALPHA, i=0):
+def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, eta0=ETA0, i=0):
     """Accepts same as logistic regression.
         Returns 2-tuple of weights theta, and also upper bound variable b.
         Returns (theta, b).
@@ -134,7 +134,7 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
 
     #TODO: jperla: can this be faster?
     for t in xrange(i, max_iter):
-        l = alpha / (1.0 + t)
+        l = eta0 / (1.0 + t)
         for i in xrange(N):
             x = X[i,:]
             s = S[i]
@@ -161,22 +161,22 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=1.0, alpha=ALP
             print t, (1.0 / (1.0 + (b * b)))
     return theta, b
 
-def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA):
+def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0):
     """Computes same as logistic_gradient_descent(), but uses Cython module."""
     X, theta, N, M = prepend_and_vars(X)
     
     y = np.array(y, dtype=np.float)
 
     if isinstance(X, scipy.sparse.csr.csr_matrix):
-        clogistic.sparse_logistic_regression(theta, X, y, N, M, alpha, max_iter)
+        clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter)
     elif isinstance(X, np.ndarray):
-        clogistic.logistic_regression(theta, X, y, N, M, alpha, max_iter)
+        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter)
     else:
         raise Exception("Unknown array datatype")
 
     return theta
 
-def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA, i=0):
+def logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0):
     """Accepts data X, an NxM matrix.
         Accepts y, an Nx1 array of binary values (0 or 1)
         Returns an Mx1 array of logistic regression parameters.
@@ -187,7 +187,7 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA, i=0):
     X, theta, N, M = prepend_and_vars(X)
     
     for t in xrange(i, max_iter):
-        l = alpha / (1.0 + t)
+        l = eta0 / (1.0 + t)
         for r in xrange(N):
             hx = logistic_sigmoid(np.dot(X[r], theta))
             #assert isinstance(hx, float)
@@ -201,7 +201,7 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, alpha=ALPHA, i=0):
             print 'll: %s' % ll
 
     '''
-    l = (alpha / max(MAX_ITER, max_iter))
+    l = (eta0 / max(MAX_ITER, max_iter))
     for t in xrange(1, max_iter + 1):
         hx = logistic_sigmoid(np.dot(X, theta))
         assert hx.shape == (N,)
@@ -359,7 +359,7 @@ def calculate_estimators(pos_sample, unlabeled,
     thetaR = fast_logistic_gradient_descent(X, y, max_iter=max_iter)
     print 'done LR...'
     print 'starting modified LR...'
-    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, alpha=0.01)
+    thetaMR, b = fast_modified_logistic_gradient_descent(X, y, max_iter=max_iter, eta0=0.01)
     #thetaMR, b = lbfgs_modified_logistic_regression(X, y)
 
     print 'done modified LR...'

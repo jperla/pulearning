@@ -7,14 +7,14 @@ class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
         Implemented in Cython.
     """
 
-    def __init__(self, alpha=1.0, n_iter=5):
+    def __init__(self, eta0=1.0, n_iter=5):
         pass
-        self.alpha = alpha
+        self.eta0 = eta0
         self.n_iter = n_iter
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
-        self.theta_ = logistic.fast_logistic_gradient_descent(X, y, max_iter=self.n_iter, alpha=self.alpha)
+        self.theta_ = logistic.fast_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0)
         return self
 
     def predict(self, X):
@@ -31,14 +31,14 @@ class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
         Implemented in Cython.
     """
 
-    def __init__(self, alpha=1.0, n_iter=5):
+    def __init__(self, eta0=1.0, n_iter=5):
         pass
-        self.alpha = alpha
+        self.eta0 = eta0
         self.n_iter = n_iter
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
-        self.theta_, self.b_ = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=self.n_iter, alpha=self.alpha)
+        self.theta_, self.b_ = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0)
         return self
 
     def predict(self, X):

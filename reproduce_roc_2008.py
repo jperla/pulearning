@@ -147,7 +147,7 @@ if __name__=='__main__':
         _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
         roc_curves.append(curve)
 
-        lr_param_grid = {'alpha': [0.01, 0.001,], 'n_iter':[200,]}
+        lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,]}
 
         name = 'Modified LR pos-only labels'
         mlr = sklearn.grid_search.GridSearchCV(sgdlr.SGDModifiedLogisticRegression(),
