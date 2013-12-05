@@ -7,13 +7,13 @@ import sklearn
 import numpy as np
 
 import sgdlr
-import logistic
 from fastgridsearch import FastGridSearchCV
 
 #C_VALUES = [0.01, 0.1]
 #C_VALUES = [1e-13, 1e-10, 1e-7, 1e-4, 1e-1, 1e2, 1e5, 1e8, 1e11, 1e14]
 #C_VALUES = [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3]
-C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
+#C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
+C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
 
 def read_swissprot_data():
     """Reads in swissprot dataset from 3 files in proteindata folder.
@@ -40,38 +40,6 @@ def calculate_roc(true_labels, estimated_labels):
     roc_auc = sklearn.metrics.auc(fpr, tpr)
     return fpr, tpr, roc_auc
 
-def svm_label_data(train_set, train_labels, test_set, C=C_VALUES, CP=None, sample_weight=None):
-    """Tries out several values for C by training on 75% of the training data, and validating on the rest.
-        Picks the best values of C then uses it on the test set.
-    """
-    svms = []
-    for c in C:
-        cps = [c] if CP is None else CP
-        for cp in cps:
-            svm, accuracies = None, []
-
-            svm = sklearn.svm.LinearSVC(C=c, class_weight={0: 1.0, 1: cp / c})
-            svm.probability = True
-            scores = sklearn.cross_validation.cross_val_score(svm, train_set, train_labels, 
-                                                              cv=3, n_jobs=-1,
-                                                              #scoring='roc_auc',
-                                       )#                       fit_params={'sample_weight': sample_weight})
-            accuracy = scores.mean()
-
-            svms.append((accuracy, 1.0 / c, c, cp, svm))
-            logging.debug('svm C=%s, CP=%s: %.2f%%' % (c, cp, 100 * accuracy))
-
-    # get the top SVM
-    best_svm = list(reversed(sorted(svms)))[0]
-    logging.info('Best SVM: C=%s, CP=%s, accuracy=%.2f' % (best_svm[2], best_svm[3], best_svm[0]))
-
-    svm = sklearn.svm.SVC(kernel='linear', cache_size=2000, C=best_svm[2], class_weight={0: 1.0, 1: best_svm[3] / best_svm[2]})
-    svm.probability = True
-
-    svm.fit(train_set, train_labels, sample_weight=sample_weight)
-    svm_labels = svm.predict_proba(test_set)
-    return svm_labels
-
 if __name__=='__main__':
     FORMAT = '%(asctime)-15s %(message)s'
     logging.basicConfig(format=FORMAT, level=logging.DEBUG)
@@ -87,7 +55,7 @@ if __name__=='__main__':
 
     truncate = lambda m: m[:int(m.shape[0] / 30),:]
     # Use less data so that we can move faster, comment this out to use full dataset
-    pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], n_folds=num_folds, shuffle=True, random_state=0))
@@ -198,11 +166,11 @@ if __name__=='__main__':
         if calculate_svms:
             param_grid = {'C': C_VALUES}
             svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                   sklearn.svm.SVC(probability=True),
+                                   sklearn.svm.SVC(probability=True, cache_size=2000),
                                    param_grid,
                                    cv=3,
                                    n_jobs=-1,
-                                   verbose=3)
+                                   verbose=1)
             logging.info('starting SVM on pos-only data...')
             svm.fit(X, y)
             svm_labels = svm.predict_proba(test_set)
@@ -219,9 +187,12 @@ if __name__=='__main__':
             logging.info('AUC for %s: %f' % (name, roc_auc))
 
             logging.info('starting Biased SVM...')
-            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0}, {0: 1.0, 1: 2.0}, {0: 1.0, 1: 10.0}]}
+            biased_svm_param_grid = {'class_weight': [{0: 1.0, 1: 1.0},
+                                                      {0: 1.0, 1: 2.0},
+                                                      {0: 1.0, 1: 10.0}]}
+            biased_svm_param_grid.update(param_grid)
             biased_svm = FastGridSearchCV(sklearn.svm.LinearSVC(),
-                                          sklearn.svm.SVC(probability=True),
+                                          sklearn.svm.SVC(probability=True, cache_size=2000),
                                           biased_svm_param_grid,
                                           cv=3,
                                           n_jobs=-1,
