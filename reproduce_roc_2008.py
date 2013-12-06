@@ -173,6 +173,8 @@ if __name__=='__main__':
         y_labeled = create_labels((1, pos_train.shape[0] + unlabeled_pos_train.shape[0]),
                                   (0, neg_train.shape[0]))
         X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
+        N_FEATURES = 25000 # shrink number of features to test over-fitting
+        X, test_set = X[:, :N_FEATURES], test_set[:, :N_FEATURES]
         X = scipy.sparse.csr_matrix(X) # sparsify X
 
         roc_curves = []
@@ -206,11 +208,18 @@ if __name__=='__main__':
 
         mlr.fit(X, y)
         logging.info('fit probabilities...')
-        b = mlr.best_estimator_.b_
-        logging.info('b = %s' % b)
-        logging.info('1.0 / (1.0 + b*b) = %s' % (1.0 / (1.0 + b**2)))
+        best_mlr = mlr.best_estimator_
 
-        probabilities = mlr.best_estimator_.predict_proba(X)[:,1]
+        b = best_mlr.b_
+        logging.info('b = %s' % b)
+        logging.info('1.0 / (1.0 + b*b) = c = %s' % (1.0 / (1.0 + b**2)))
+
+        # Get accuracy
+        train_predicted = best_mlr.predict(X)
+        logging.debug('\n' + sklearn.metrics.classification_report(y, train_predicted))
+        #logging.debug('Log-likelihood of training set: %.4f' % best_mlr.log_likelihood(X, y, best_mlr.theta_, best_mlr.b_))
+
+        probabilities = best_mlr.predict_proba(X)[:,1]
         c = (1.0 / (1.0 + b*b))
         _, curve = fit_double_weighted(name, 'r--', X, y, 
                                        probabilities, c,

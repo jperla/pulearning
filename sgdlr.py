@@ -50,4 +50,14 @@ class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
         a = logistic.label_data(X, self.theta_, self.b_**2, binarize=False)
         return np.vstack([1.0 - a, a]).T
 
+    def log_likelihood(self, X, y):
+        def likelihood(x, s, theta, b):
+            """Calculates the likelihood of one example"""
+            assert x.shape[1] + 1 == theta.shape[0]
+            ewx = np.exp(-1 * (x.dot(theta[1:]) + theta[0]))
+            first_term = ((1.0) / (1.0 + (b * b) + ewx)) ** s
+            second_term = (((b * b) + ewx) / (1.0 + (b * b) + ewx)) ** (1.0 - s)
+            return first_term * second_term
+        likelihoods = np.array([likelihood(X[i,:], y[i], self.theta_, self.b_) for i in range(X.shape[0])])
+        return np.sum(np.log(likelihoods))
 
