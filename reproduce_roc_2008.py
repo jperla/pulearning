@@ -7,7 +7,7 @@ import sklearn
 from sklearn.grid_search import GridSearchCV
 import numpy as np
 
-import sgdlr
+import lr
 from fastgridsearch import FastGridSearchCV
 
 #C_VALUES = [0.01, 0.1]
@@ -203,7 +203,7 @@ if __name__=='__main__':
         mlr_param_grid = {} #'b': [major_case_b, 1.0, 2.0, 3.0, 4.0, 5.0]}
         mlr_param_grid.update(lr_param_grid)
         name = 'Modified LR pos-only labels'
-        mlr = sklearn.grid_search.GridSearchCV(sgdlr.SGDModifiedLogisticRegression(),
+        mlr = sklearn.grid_search.GridSearchCV(lr.SGDModifiedLogisticRegression(),
                                                mlr_param_grid, cv=3, n_jobs=-1)
 
         mlr.fit(X, y)
@@ -227,7 +227,7 @@ if __name__=='__main__':
         roc_curves.append(curve)
 
 
-        lr = sklearn.grid_search.GridSearchCV(sgdlr.SGDLogisticRegression(),
+        lr = sklearn.grid_search.GridSearchCV(lr.SGDLogisticRegression(),
                                               lr_param_grid, cv=3, n_jobs=-1)
 
         # Baseline if we knew everything
