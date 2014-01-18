@@ -60,3 +60,22 @@ class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
         likelihoods = np.array([likelihood(X[i,:], y[i], self.theta_, self.b_) for i in range(X.shape[0])])
         return np.sum(np.log(likelihoods))
 
+class LBFGSLogisticRegression(BaseEstimator, ClassifierMixin):
+    """L-BFGS version of logistic regression.
+    """
+
+    def __init__(self, l2_regularization=0):
+        self.l2_regularization = l2_regularization
+
+    def fit(self, X, y):
+        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.theta_ = lr.lbfgs_logistic_regression(X, y, l2_regularization=self.l2_regularization)
+        return self
+
+    def predict(self, X):
+        return logistic.label_data(X, self.theta_, binarize=True)
+
+    def predict_proba(self, X):
+        a = logistic.label_data(X, self.theta_, binarize=False)
+        return np.vstack([1.0 - a, a]).T
+

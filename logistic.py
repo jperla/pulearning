@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import numpy as np
+import scipy.optimize
 import scipy.sparse
 import sklearn
 import sklearn.preprocessing
@@ -115,6 +116,29 @@ def lbfgs_modified_logistic_regression(X, y, b=None):
     theta, b = answer[1:], answer[0]
     return theta, b
 
+def lbfgs_logistic_regression(X, y, l2_regularization=0):
+    """Solves a logistic regression optimization for the data X and labels y, solved using lbfgs.
+       Returns the found parameters (adds intercept term, so should have one more than the number of columns in X).
+    """
+    X, theta, N, M = prepend_and_vars(X)
+
+    def f(w, X, y):
+        """Accepts w (the set of parameters), and X, the point.  
+           Returns value at x
+        """
+        theta = w
+        value = np.sum(np.abs(y - (1.0 / (1.0 + X.dot(theta)))))
+
+        # now fill in the g
+        ewx = np.exp(-X.dot(theta))
+        p = ((y - 1.0) / ewx) + (1.0 / (1.0 + ewx))
+        
+        dLdw = (p * ewx).reshape((X.shape[0], 1)) * X
+
+        gradient = np.sum(dLdw, axis=0)
+        return value, gradient
+    final_theta = scipy.optimize.fmin_l_bfgs_b(f, theta, args=(X, y,))
+    return theta
 
 def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA0):
     """Same but uses Cython."""
