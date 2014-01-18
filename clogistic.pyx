@@ -34,6 +34,7 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
                         int M,
                         double eta0, 
                         int max_iter, 
+                        double l2_regularization,
                         ):
     """Cython version of stochastic gradient descent of 
         logistic regression
@@ -49,15 +50,16 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
     cdef double wx, hx, z, lambda_
     cdef int t, r, m
     for t in range(0, max_iter):
-        lambda_ = eta0 / (1.0 + t)
+        lambda_ = eta0 / (1.0 + t)    
         for r in range(N):
             wx = 0.0
             for m in range(M):
                 wx += X[r,m] * theta[m]
             hx = sigmoid(wx)
+            l2_norm = 0
             z = lambda_ * (y[r] - hx)
             for m in range(M):
-                theta[m] += z * X[r,m]
+                theta[m] += z * X[r,m] - (l2_regularization * 2 * lambda_ * theta[m])
     return theta
 
 @wrap_fast_cython
