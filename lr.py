@@ -8,14 +8,14 @@ class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
         Implemented in Cython.
     """
 
-    def __init__(self, eta0=1.0, n_iter=5, l2_regularization=0):
+    def __init__(self, eta0=1.0, n_iter=5, alpha=0):
         self.eta0 = eta0
         self.n_iter = n_iter
-        self.l2_regularization = l2_regularization
+        self.alpha = alpha
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
-        self.theta_ = logistic.fast_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, l2_regularization=self.l2_regularization)
+        self.theta_ = logistic.fast_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, alpha=self.alpha)
         return self
 
     def predict(self, X):
