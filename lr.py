@@ -64,12 +64,12 @@ class LBFGSLogisticRegression(BaseEstimator, ClassifierMixin):
     """L-BFGS version of logistic regression.
     """
 
-    def __init__(self, l2_regularization=0):
-        self.l2_regularization = l2_regularization
+    def __init__(self, alpha=0):
+        self.alpha = alpha
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
-        self.theta_ = lr.lbfgs_logistic_regression(X, y, l2_regularization=self.l2_regularization)
+        self.theta_ = logistic.lbfgs_logistic_regression(X, y, alpha=self.alpha)
         return self
 
     def predict(self, X):

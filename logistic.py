@@ -59,7 +59,7 @@ def prepend_and_vars(X):
     # prepend col of ones for intercept term
     X = prepend_column_of_ones(X) 
     N,M = X.shape
-    theta = np.zeros((M,)) + 0.01
+    theta = np.zeros((M,)) + (1.0 / M)
     return X, theta, N, M
 
 def prepend_column_of_ones(X):
@@ -116,29 +116,59 @@ def lbfgs_modified_logistic_regression(X, y, b=None):
     theta, b = answer[1:], answer[0]
     return theta, b
 
-def lbfgs_logistic_regression(X, y, l2_regularization=0):
+def regularized_lcl_loss_function(w, X, y, alpha):
+    """Accepts w (the set of parameters), 
+        and X, the matrix of training data (NxD), 
+            where N is the number of samples, 
+                and D the number of dimensions (features).
+        and y, the labels of the features in X.
+        Returns value and the gradient of the loss function (LCL - regularization) at w.
+    """
+    N,D = X.shape
+    assert y.shape[0] == N
+    assert len(y) == N
+    
+    ewx = np.exp(-1 * X.dot(w))
+    assert ewx.shape[0] == N
+    assert len(ewx) == N
+
+    p = (1.0 / (1.0 + ewx))
+    assert p.shape[0] == N
+    assert len(p) == N
+
+    lcl = 0.0
+    for i in xrange(N):
+        if y[i] == 1:
+            lcl += np.log(p[i])
+        else:
+            lcl += np.log(1 - p[i])
+
+    value_regularization = alpha * np.sum(w ** 2)
+
+    value = -lcl + value_regularization
+
+    # now calculate the gradient
+    t = (y - p)
+    assert t.shape[0] == N
+    assert len(t) == N
+
+    gradient_regularization = 2 * alpha * w
+    assert gradient_regularization.shape[0] == D
+    assert len(gradient_regularization) == D
+    gradient = -(t.reshape((1, N)).dot(X)).reshape((D,)) + gradient_regularization
+
+    #w[:] = gradient[:]
+    return value#, gradient
+
+def lbfgs_logistic_regression(X, y, alpha=0):
     """Solves a logistic regression optimization for the data X and labels y, solved using lbfgs.
        Returns the found parameters (adds intercept term, so should have one more than the number of columns in X).
     """
-    X, theta, N, M = prepend_and_vars(X)
+    X, w, N, M = prepend_and_vars(X)
 
-    def f(w, X, y):
-        """Accepts w (the set of parameters), and X, the point.  
-           Returns value at x
-        """
-        theta = w
-        value = np.sum(np.abs(y - (1.0 / (1.0 + X.dot(theta)))))
-
-        # now fill in the g
-        ewx = np.exp(-X.dot(theta))
-        p = ((y - 1.0) / ewx) + (1.0 / (1.0 + ewx))
-        
-        dLdw = (p * ewx).reshape((X.shape[0], 1)) * X
-
-        gradient = np.sum(dLdw, axis=0)
-        return value, gradient
-    final_theta = scipy.optimize.fmin_l_bfgs_b(f, theta, args=(X, y,))
-    return theta
+    final_w, f, d = scipy.optimize.fmin_l_bfgs_b(regularized_lcl_loss_function, w, args=(X, y, alpha), approx_grad=True)
+    print 'funcalls:', d['funcalls']
+    return final_w
 
 def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA0):
     """Same but uses Cython."""
@@ -497,4 +527,3 @@ if __name__ == '__main__':
     import jsondata
     jsondata.save('table.json', table)
         
-
