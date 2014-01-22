@@ -235,16 +235,16 @@ def modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA
             print t, (1.0 / (1.0 + (b * b)))
     return theta, b
 
-def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, alpha=0):
+def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, alpha=0, learning_rate='default'):
     """Computes same as logistic_gradient_descent(), but uses Cython module."""
     X, theta, N, M = prepend_and_vars(X)
     
     y = np.array(y, dtype=np.float)
 
     if isinstance(X, scipy.sparse.csr.csr_matrix):
-        clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha)
+        clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
     elif isinstance(X, np.ndarray):
-        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha)
+        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
     else:
         raise Exception("Unknown array datatype")
 

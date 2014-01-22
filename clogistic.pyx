@@ -35,6 +35,7 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
                         double eta0, 
                         int max_iter, 
                         double alpha,
+                        str learning_rate,
                         ):
     """Cython version of stochastic gradient descent of 
         logistic regression
@@ -51,7 +52,11 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
     cdef double wx, hx, z, lambda_
     cdef int t, r, m
     for t in range(0, max_iter):
-        lambda_ = eta0 / (1.0 + t)    
+        if learning_rate == 'constant':
+            lambda_ = eta0
+        else:
+            lambda_ = eta0 / (1.0 + t)    
+
         for r in range(N):
             wx = 0.0
             for m in range(M):
