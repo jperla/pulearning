@@ -158,7 +158,7 @@ def regularized_lcl_loss_function(w, X, y, alpha):
     gradient = -(t.reshape((1, N)).dot(X)).reshape((D,)) + gradient_regularization
 
     #w[:] = gradient[:]
-    return value#, gradient
+    return value, gradient
 
 def lbfgs_logistic_regression(X, y, alpha=0):
     """Solves a logistic regression optimization for the data X and labels y, solved using lbfgs.
@@ -166,7 +166,7 @@ def lbfgs_logistic_regression(X, y, alpha=0):
     """
     X, w, N, M = prepend_and_vars(X)
 
-    final_w, f, d = scipy.optimize.fmin_l_bfgs_b(regularized_lcl_loss_function, w, args=(X, y, alpha), approx_grad=True)
+    final_w, f, d = scipy.optimize.fmin_l_bfgs_b(regularized_lcl_loss_function, w, args=(X, y, alpha), m=1000)
     print 'funcalls:', d['funcalls']
     return final_w
 
