@@ -167,7 +167,6 @@ def lbfgs_logistic_regression(X, y, alpha=0, n_iter=15000):
     X, w, N, M = prepend_and_vars(X)
 
     final_w, f, d = scipy.optimize.fmin_l_bfgs_b(regularized_lcl_loss_function, w, args=(X, y, alpha), m=1000, maxfun=n_iter)
-    print 'funcalls:', d['funcalls']
     return final_w
 
 def fast_modified_logistic_gradient_descent(X, S, max_iter=MAX_ITER, b=None, eta0=ETA0):
