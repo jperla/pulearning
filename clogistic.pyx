@@ -62,10 +62,11 @@ def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None,
             for m in range(M):
                 wx += X[r,m] * theta[m]
             hx = sigmoid(wx)
-            l2_norm = 0
             z = lambda_ * (y[r] - hx)
             for m in range(M):
-                theta[m] += z * X[r,m] - (alpha * 2 * lambda_ * theta[m])
+                theta[m] += z * X[r,m]
+                if m > 0: # do not regularize intercept term
+                    theta[m] -= (alpha * 2 * lambda_ * theta[m])
     return theta
 
 @wrap_fast_cython
