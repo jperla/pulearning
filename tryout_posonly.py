@@ -90,48 +90,8 @@ if __name__ == '__main__':
         print 'done LR...'
         print 'sgd tested:', sgd.score(testX, testY)
 
-
-
-        '''
-        # unit area ellipse
-        fig = pyplot.figure()
-        ax = fig.add_subplot(111)
-        ax.scatter(pos[:,0], pos[:,1], s=6, c='b', marker='+')
-        ax.scatter(neg[:,0], neg[:,1], s=6, c='r', marker='o', lw=0)
-
-        delta = 0.01
-        x, y = np.arange(-8.0, 8.0, delta), np.arange(-10.0, 10.0, delta)
-        X, Y = np.meshgrid(x, y)
-
-        assert X.shape == Y.shape
-        shape = X.shape
-
-        data = np.hstack([X.flatten().reshape(-1, 1), Y.flatten().reshape(-1,1)])
-        assert data.shape[0] == (shape[0] * shape[1]) and data.shape[1] == 2
-        data = add_x2_y2(data)
-
-        # plot the LR on the true labels
-        labels = logistic.label_data(data, thetaTrue, normalizer=0.0, binarize=False)
-        labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#0000FF')
-        
-        labels = logistic.label_data(data, theta, normalizer=0.0, binarize=False)
-        labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#AAAAFF')
-
-        labels = posonly.predict_proba(data)[:,0]
-        labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#FF0000')
-        #pyplot.clabel(CS, inline=1, fontsize=10)
-
-
-        print 'b: ', b
-        print 'c ~ ', 1.0 / (1.0 + b*b)
-        labels = logistic.label_data(data, thetaM, normalizer=(b*b), binarize=False)
-        labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='r')
-        #pyplot.clabel(CS, inline=1, fontsize=15)
-
-        pyplot.title('Logistic regression on synthetic data')
-        pyplot.show()
-        '''
+        print 'starting LR...'
+        true_sgd = sklearn.linear_model.SGDClassifier(loss='log')
+        true_sgd.fit(testX, testY)
+        print 'done LR...'
+        print 'maximum:', true_sgd.score(testX, testY)

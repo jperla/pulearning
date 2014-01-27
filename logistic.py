@@ -290,36 +290,45 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0):
 
     return theta
 
-def posonly_multinomial_probabilities(x, c, wp, wn):
+def posonly_multinomial_log_probabilities(x, c, wp, wn):
     """Accepts x (1xD) vector, and beta parameteri vectors, (c labeling constant, w_p the positive parameters and w_n the negative ones).
-        Returns 3-tuple that sums to 1 of the probabilities of positive labeled, positive unlabeled, and negative.
+        Returns 3-tuple that sums to 1 of the log odds of positive labeled, positive unlabeled, and negative.
     """
-    ewp = np.exp(x.dot(wp))
-    ewn = np.exp(x.dot(wn))
-    Z = (ewp + ewn)
-    PL = c * ewp / Z
-    PU = (1.0 - c) * ewp / Z
-    N = ewn / Z
-    return (PL, PU, N)
+    xwp = x.dot(wp)
+    xwn = x.dot(wn)
+    #Z = (ewp + ewn)
+    logZ = scipy.misc.logsumexp([xwp, xwn])
+    #PL = c * ewp / Z
+    logPL = np.log(c) + xwp - logZ
+    #PU = (1.0 - c) * ewp / Z
+    logPU = np.log(1.0 - c) + xwp - logZ
+    #N = ewn / Z
+    logN = xwn - logZ
+    return (logPL, logPU, logN)
 
 def posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn):
-    ewp = np.exp(x.dot(wp))
-    ewn = np.exp(x.dot(wn))
-    return ((1.0 - c) * ewp) / (((1.0 - c) * ewp) + ewn)
+    # ((1.0 - c) * ewp) / (((1.0 - c) * ewp) + ewn)
+    xwp = x.dot(wp)
+    xwn = x.dot(wn)
+    n = np.log(1.0 - c) + xwp
+    d = scipy.misc.logsumexp([n, xwn])
+    return np.exp(n - d)
 
 def posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn):
-    ewp = np.exp(x.dot(wp))
-    ewn = np.exp(x.dot(wn))
-    return ewn / (((1.0 - c) * ewp) + ewn)
+    # ewn / (((1.0 - c) * ewp) + ewn)
+    xwp = x.dot(wp)
+    xwn = x.dot(wn)
+    d = scipy.misc.logsumexp([np.log(1.0 - c) + xwp, xwn])
+    return np.exp(xwn - d)
 
-def posonly_multinomial_probability_of_label(x, label, c, wp, wn):
-    PL, PU, N = posonly_multinomial_probabilities(x, c, wp, wn)
-    assert (PL + PU + N - 1.0) < 0.0001
+def posonly_multinomial_log_probability_of_label(x, label, c, wp, wn):
+    logPL, logPU, logN = posonly_multinomial_log_probabilities(x, c, wp, wn)
+    assert np.abs(scipy.misc.logsumexp([logPL, logPU, logN])) < 0.001
 
     if label == 1:
-        return PL
+        return logPL
     elif label == 0:
-        return PU + N
+        return scipy.misc.logsumexp([logPU, logN])
     else:
         raise Exception("unknown label")
 
@@ -341,7 +350,7 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
         for r in xrange(N):
             x, label = X[r], y[r]
             #print r, iteration, x, c, wp, wn
-            Ppl, Ppu, Pn = posonly_multinomial_probabilities(x, c, wp, wn)
+            logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(x, c, wp, wn)
 
             # calculate wp
             d = 0.0
@@ -349,7 +358,7 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
                 d = 1.0
             else:
                 d = posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn)
-            d -= (Ppl + Ppu)
+            d -= np.exp(scipy.misc.logsumexp([logPpl, logPpu]))
             wp += alpha * (d * x)
 
             # calculate wn
@@ -357,14 +366,14 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
             if label == 0:
                 d = posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn)
             #print d, Pn, x, wn, '#debug'
-            d -= Pn
+            d -= np.exp(logPn)
             wn += alpha * (d * x)
 
             # TODO: calculate c
             c = c
        
         if iteration % 2 == 0:
-            ll =  np.sum(np.log(posonly_multinomial_probability_of_label(x, y[r], c, wp, wn)) for r in xrange(N))
+            ll =  np.sum(posonly_multinomial_log_probability_of_label(x, y[r], c, wp, wn) for r in xrange(N))
             print c, wp, wn
             print iteration, 'll: %s' % ll
     return c, wp, wn
