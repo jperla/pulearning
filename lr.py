@@ -15,7 +15,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
-        self.c_, self.wp_, self.wn_ = logistic.posonly_multinomial_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, c=self.c)
+        self.b_, self.w_ = logistic.posonly_multinomial_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, c=self.c)
         return self
 
     def predict(self, X):
@@ -26,7 +26,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         N = X.shape[0]
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
-            logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(X[r], self.c_, self.wp_, self.wn_)
+            logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(X[r], self.b_, self.w_)
             probas.append(np.exp([scipy.misc.logsumexp([logPL, logPU]), logN]))
         return np.array(probas)
 

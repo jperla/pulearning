@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     gaussian = np.random.multivariate_normal
 
-    cs = [0.1,]
+    cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05]
     for c in cs:
         positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
         X = np.vstack([positive_labeled, unlabeled])
