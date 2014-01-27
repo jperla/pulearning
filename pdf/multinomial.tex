@@ -1,0 +1,352 @@
+\documentclass[]{article}
+\usepackage{graphicx}
+
+\begin{document}
+
+\title{Classifying positive and unlabeled training  with multinomial logistic regression}
+\author{Joseph Perla}
+\date{1/25/2014}
+\maketitle
+
+\section{The Probem}
+In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has some positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the distribution of positive samples with probability $c$.
+
+\section{The Multinomial Regression Model}
+
+We model the positive-only problem with a multinomial regression in the following way: assume there are 3 classes.  One class is positive and labeled ($P_L$), one is positive and unlabeled ($P_U$), and the last is negative and unlabeled (N).  There are no negative labeled samples.  We use the standard multinomial regression probabilities, but we share the weights $w_p$ between the positive-labeled ($P_L$) and positive-unlabeled ($P_U$) classes. Finally, we include a multiplicative term $c$ representing the constant fraction of the positive samples which are labeled.  $Z_N$ is the normalization factor:
+
+$$
+p(k=P_L | x, w_p, w_n) =  \frac{c \cdot e^{w_p \cdot x}}{Z_N} = \frac{c \cdot e^{w_p \cdot x}}{c \cdot e^{w_p \cdot x} + (1 - c) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{c \cdot e^{w_p \cdot x}}{e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
+
+$$
+p(k=P_U | x, w_p, w_n) =  \frac{(1 - c) \cdot e^{w_p \cdot x}}{Z_N} = \frac{(1 - c) \cdot e^{w_p \cdot x}}{c \cdot e^{w_p \cdot x} + (1 - c) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{(1 - c) \cdot e^{w_p \cdot x}}{e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
+
+$$
+p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_N} = \frac{e^{w_n \cdot x}}{c \cdot e^{w_p \cdot x} + (1 - c) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{e^{w_n \cdot x}}{e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
+
+Notice that, $\forall x$,
+
+$$
+\frac{p(k=P_L | x, w_p, w_n)}{p(k=P_L | x, w_p, w_n) + p(k=P_U | x, w_p, w_n)} = c.
+$$
+
+Thus, $c$ is the constant fraction of positive samples which are labeled.  
+
+\section{Learning $\beta = c, w_p, w_n$ from $D$}
+
+Assuming we have independently drawn data $D$, the conditional log likelihood, where $\beta = c, w_p, w_n$ is
+$$
+\log{p(D | \beta)} = \log \prod_{j=1...n}{p(\ell_j, x_j | \beta)} = \sum_{j=1...n}{\log{p(\ell_j, x_j | \beta)}} = \sum_{j=1...n}{\log{p(\ell_j | x_j, \beta)}} \cdot p(x_j | \beta)
+$$
+
+where $\ell_j$ is an indicator variable describing whether the sample is labeled or not. $\ell_j = 1$ if and only if $k_j=P_L$, otherwise $k_j = N$ or $k_j=P_U$ and $\ell_j = 0$.  Also note that $p(x_j|\beta) = p(x_j)$ and we assume uninformative uniform prior for $x_j$, so let $p(x_j|\beta) = 1$.
+
+The maximum likelihood (ML) estimate $\hat \beta$ is the value of $\beta$ maximizing the likelihood of the data $D$:
+$$
+\hat \beta = arg max_{\beta} p(D | \beta) = arg max_{\beta} \log{p(D | \beta)}.
+$$
+
+\subsection{Stochastic Gradient}
+We want to use stochastic gradient following to learn the parameters $\beta$. So take the partial derivatives of the log conditional likelihood (LCL) for each parameter.
+
+\subsubsection{$ \nabla_{w_{p_i}}{Err_R (D, \beta)}$}
+
+$$
+\nabla_{w_{p_i}}{Err_R (D, \beta)} = \frac{\partial}{\partial w_{p_i}} \log{p(D|\beta)} =  \sum_{j=1...n}{\frac{\partial}{\partial w_{p_i}}\log{p(\ell_j | x_j, \beta)}}
+$$
+
+so for each $j$,
+
+$$
+ = \frac{\partial}{\partial w_{p_i}}\log{p(\ell_j | x_j, \beta)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{p_i}}
+		\log{\Bigg(
+			I(\ell_j=1) \cdot \left( \frac{c \cdot e^{w_p \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}} \right) + 
+			I(\ell_j=0) \cdot \left(\frac{(1 - c) \cdot e^{w_p \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}  + \frac{e^{w_n \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}} \right)
+		\Bigg)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{p_i}}
+		\log{\Bigg(
+		    \frac{
+			I(\ell_j=1) \cdot \left( c \cdot e^{w_p \cdot x_j} \right) + 
+			I(\ell_j=0) \cdot \left( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \right)
+		     }{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}
+		\Bigg)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{p_i}}
+		\log{\bigg(
+			I(\ell_j=1) \cdot \left( c \cdot e^{w_p \cdot x_j} \right) + 
+			I(\ell_j=0) \cdot \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big)
+		\bigg)}
+		- \frac{\partial}{\partial w_{p_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+
+$$
+ = I(\ell_j=1) \cdot \frac{\partial}{\partial w_{p_i}}
+		\log{\Big(
+			\left( c \cdot e^{w_p \cdot x_j} \right) 
+		\Big)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial w_{p_i}}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+		- \frac{\partial}{\partial w_{p_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+$$
+ = I(\ell_j=1) \cdot x_{j,i} + 
+    I(\ell_j=0) \cdot \frac{\partial}{\partial w_{p_i}}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+		- \frac{\partial}{\partial w_{p_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+
+$$
+ = I(\ell_j=1) \cdot x_{j,i} + 
+    I(\ell_j=0) \cdot 
+ 		\frac{
+			(1 - c) \cdot e^{w_p \cdot x_j}
+		}{
+			(1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+		- \frac{\partial}{\partial w_{p_i}}
+		 \log{\Big(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\Big)}
+$$
+
+
+$$
+ = I(\ell_j=1) \cdot x_{j,i} + 
+    I(\ell_j=0) \cdot 
+ 		\frac{
+			(1 - c) \cdot e^{w_p \cdot x_j}
+		}{
+			(1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+		- 
+ 		\frac{
+			e^{w_p \cdot x_j}
+		}{
+			e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+$$
+
+$$
+ = x_{j,i} \cdot
+    \Big(	I(\ell_j=1) + 
+		I(\ell_j=0) \cdot p(k_j=P_U | \ell_j=0, x_j, \beta) - 
+		p(k_j=P_L or k_j=P_U | x_j, \beta)
+    \Big)
+$$
+
+
+\subsubsection{$ \nabla_{w_{n_i}}{Err_R (D, \beta)}$}
+
+Similarly for the negative weights in $\beta$, for each $j$,
+
+$$
+ = \frac{\partial}{\partial w_{n_i}}\log{p(\ell_j | x_j, \beta)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{n_i}}
+		\log{\Bigg(
+			I(\ell_j=1) \cdot \left( \frac{c \cdot e^{w_p \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}} \right) + 
+			I(\ell_j=0) \cdot \left(\frac{(1 - c) \cdot e^{w_p \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}  + \frac{e^{w_n \cdot x_j}}{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}} \right)
+		\Bigg)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{n_i}}
+		\log{\Bigg(
+		    \frac{
+			I(\ell_j=1) \cdot \left( c \cdot e^{w_p \cdot x_j} \right) + 
+			I(\ell_j=0) \cdot \left( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \right)
+		     }{e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}
+		\Bigg)}
+$$
+
+$$
+ = \frac{\partial}{\partial w_{n_i}}
+		\log{\bigg(
+			I(\ell_j=1) \cdot \left( c \cdot e^{w_p \cdot x_j} \right) + 
+			I(\ell_j=0) \cdot \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big)
+		\bigg)}
+		- \frac{\partial}{\partial w_{n_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+
+$$
+ = I(\ell_j=1) \cdot \frac{\partial}{\partial w_{n_i}}
+		\log{\Big(
+			c \cdot e^{w_p \cdot x_j}
+		\Big)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial w_{n_i}}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+		- \frac{\partial}{\partial w_{n_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+$$
+ = I(\ell_j=0) \cdot \frac{\partial}{\partial w_{n_i}}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+		- \frac{\partial}{\partial w_{n_i}}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+$$
+ = 	I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w_n \cdot x_j}
+		}{
+			(1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+		- \frac{\partial}{\partial w_{n_i}}
+		 \log{\Big(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\Big)}
+$$
+
+
+$$
+ = I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w_n \cdot x_j}
+		}{
+			(1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+		- 
+ 		\frac{
+			e^{w_n \cdot x_j}
+		}{
+			e^{w_p \cdot x_j}  + e^{w_n \cdot x_j}
+		} \cdot x_{j,i}
+$$
+
+$$
+ = x_{j,i} \cdot
+    \Big(	I(\ell_j=0) \cdot p(k_j=N | \ell_j=0, x_j, \beta) - 
+		p(k_j=N | x_j, \beta)
+    \Big)
+$$
+
+\subsubsection{$ \nabla_{c}{Err_R (D, \beta)}$}
+
+
+Similarly for the parameter $c$ in $\beta$, for each $j$,
+
+$$
+ = \frac{\partial}{\partial c}\log{p(\ell_j | x_j, \beta)}
+$$
+
+$$
+ = I(\ell_j=1) \cdot \frac{\partial}{\partial c}
+		\log{\Big(
+			 c \cdot e^{w_p \cdot x_j}
+		\Big)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial c}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+		- \frac{\partial}{\partial c}
+		 \log{\bigg(
+			e^{w_p \cdot x_j} + e^{w_n \cdot x_j}
+		\bigg)}
+$$
+
+$$
+ = I(\ell_j=1) \cdot \frac{\partial}{\partial c}
+		\log{\Big(
+			 c \cdot e^{w_p \cdot x_j}
+		\Big)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial c}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+$$
+
+$$
+ = I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} \cdot c' +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial c}
+		\log{ \Big( (1 - c) \cdot e^{w_p \cdot x_j}  + e^{w_n \cdot x_j} \Big) }
+$$
+
+$$
+ = \Big[
+    I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} -
+    I(\ell_j=0) \cdot \frac{e^{w_p \cdot x_j}}{(1 - c) \cdot e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}
+    \Big] \cdot c'
+$$
+
+$$
+ = \Big[
+    I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} -
+    I(\ell_j=0) \cdot \frac{e^{w_p \cdot x_j}}{(1 - c) \cdot e^{w_p \cdot x_j} + e^{w_n \cdot x_j}}
+    \Big] \cdot c'
+$$
+
+$$
+ = \Big[
+    I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} -
+    I(\ell_j=0) \cdot \frac{p(k_j=P_L or k_j=P_U | x_j, \beta)}{p(k_j=P_U or k_j=N | x_j, \beta)}
+    \Big] \cdot c'
+$$
+
+$$
+ = \Big[
+    I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} -
+    I(\ell_j=0) \cdot \frac{p(k_j=P_L | x_j, \beta)}{p(k_j=P_U or k_j=N | x_j, \beta)}  \cdot \frac{1}{c}
+    \Big] \cdot c'
+$$
+
+$$
+ = \Big[
+    I(\ell_j=1) \cdot \frac{1}{e^{w_p \cdot x_j}} -
+    I(\ell_j=0) \cdot \frac{p(\ell_j=1 | x_j, \beta)}{p(\ell_j=0 | x_j, \beta)}  \cdot \frac{1}{c}
+    \Big] \cdot c'
+$$
+
+And we can let $c$ pass through a sigmoid parametrized by a parameter $b$ in order to pin $c$ between 0 and 1.  So
+
+$$
+c = \frac{1}{1 + e^{-b}}
+$$
+
+$$
+c' = \frac{e^{b}}{(e^{b} + 1)^2}
+$$
+
+\section{Results}
+
+This was implemented in Python and numpy.
+
+\label{Reproduce Elkan 2008 graph with generated data}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{newgraph.png}
+\caption{When we run the code and fix the value of c to the true value, we generate a strong curve. The next step is to learn c jointly. We also need to calculate 2x fewere parameters. Finally, we need to ensure that likelihood is going up at each epoch.}
+\end{figure}
+
+\end{document}

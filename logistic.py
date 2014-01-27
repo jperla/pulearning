@@ -243,7 +243,9 @@ def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, alpha=0, 
     if isinstance(X, scipy.sparse.csr.csr_matrix):
         clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
     elif isinstance(X, np.ndarray):
-        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
+        assert alpha == 0, 'non-sparse does not support regularization'
+        assert learning_rate == 'default', 'non-sparse does not support different learning rates'
+        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter)
     else:
         raise Exception("Unknown array datatype")
 
@@ -287,6 +289,86 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0):
     '''
 
     return theta
+
+def posonly_multinomial_probabilities(x, c, wp, wn):
+    """Accepts x (1xD) vector, and beta parameteri vectors, (c labeling constant, w_p the positive parameters and w_n the negative ones).
+        Returns 3-tuple that sums to 1 of the probabilities of positive labeled, positive unlabeled, and negative.
+    """
+    ewp = np.exp(x.dot(wp))
+    ewn = np.exp(x.dot(wn))
+    Z = (ewp + ewn)
+    PL = c * ewp / Z
+    PU = (1.0 - c) * ewp / Z
+    N = ewn / Z
+    return (PL, PU, N)
+
+def posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn):
+    ewp = np.exp(x.dot(wp))
+    ewn = np.exp(x.dot(wn))
+    return ((1.0 - c) * ewp) / (((1.0 - c) * ewp) + ewn)
+
+def posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn):
+    ewp = np.exp(x.dot(wp))
+    ewn = np.exp(x.dot(wn))
+    return ewn / (((1.0 - c) * ewp) + ewn)
+
+def posonly_multinomial_probability_of_label(x, label, c, wp, wn):
+    PL, PU, N = posonly_multinomial_probabilities(x, c, wp, wn)
+    assert (PL + PU + N - 1.0) < 0.0001
+
+    if label == 1:
+        return PL
+    elif label == 0:
+        return PU + N
+    else:
+        raise Exception("unknown label")
+
+def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0, c=0.5):
+    """Accepts data X, an NxM matrix.
+        Accepts y, an Nx1 array of binary values (0 or 1)
+        Returns c and the weighted the parameter vectors.
+
+        Based on Andrew Ng's Matlab implementation: 
+            http://cs229.stanford.edu/section/matlab/logistic_grad_ascent.m
+    """
+    X, theta, N, M = prepend_and_vars(X)
+
+    wp = np.zeros(M)
+    wn = np.zeros(M)
+    
+    for iteration in xrange(i, max_iter):
+        alpha = eta0
+        for r in xrange(N):
+            x, label = X[r], y[r]
+            #print r, iteration, x, c, wp, wn
+            Ppl, Ppu, Pn = posonly_multinomial_probabilities(x, c, wp, wn)
+
+            # calculate wp
+            d = 0.0
+            if label == 1:
+                d = 1.0
+            else:
+                d = posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn)
+            d -= (Ppl + Ppu)
+            wp += alpha * (d * x)
+
+            # calculate wn
+            d = 0.0
+            if label == 0:
+                d = posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn)
+            #print d, Pn, x, wn, '#debug'
+            d -= Pn
+            wn += alpha * (d * x)
+
+            # TODO: calculate c
+            c = c
+       
+        if iteration % 2 == 0:
+            ll =  np.sum(np.log(posonly_multinomial_probability_of_label(x, y[r], c, wp, wn)) for r in xrange(N))
+            print c, wp, wn
+            print iteration, 'll: %s' % ll
+    return c, wp, wn
+
 
 def logistic_sigmoid(v, normalizer=0.0):
     """Returns 1 / (1 + n + e^(-v))"""

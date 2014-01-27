@@ -9,13 +9,35 @@ np.seterr(all='raise')
 import lr
 import logistic
 
+def calculate_posonly(c, pos_sample, unlabeled, max_iter=100):
+    """Accepts Positive samples and unlabeled sets.
+            Also accepts validation set equivalents.
+            Also accepts maximum number of iterations for regression.
+       Returns a 2-tuple of the learned parameters, and estimators.
+            First element is 3-tuple of learned LR params, modified LR, and b.
+            Second element is 5-tuple of estimators, 
+                    (e1, e2, e3, e1_hat, e4_hat) according to the paper.
+    """
+    X = np.vstack([pos_sample, unlabeled])
+    y = np.hstack([np.array([1] * pos_sample.shape[0]),
+                np.array([0] * unlabeled.shape[0]),])
+    X, y = sklearn.utils.shuffle(X, y)
+    X = sklearn.preprocessing.normalize(X, axis=0)
+    
+    print 'starting LR...'
+    posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=max_iter, c=c)
+    posonly.fit(X, y)
+    print 'done LR...'
+    return posonly
+
+
 def add_x2_y2(a):
     """Accepts an (N,2) array, adds 2 more columns
         which are first col squared, second col squared.
     """
     return logistic.vstack([a.T, a[:,0]**2, a[:,1]**2]).T
 
-def gen_sample(p, n):
+def gen_sample(c, p, n):
     """Accepts two integers.
         Returns a new dataset of x,y gaussians plus 
             x^2 and y^2 in a 2-tuple of 2 arrays; (p,4) and (n,4) 
@@ -28,7 +50,6 @@ def gen_sample(p, n):
 
 if __name__ == '__main__':
     cs = np.linspace(0.05, 1, 20)
-    validation_fractions = [0.01, 0.05, 0.10, 0.30, 0.50, 1.0]
     table = []
 
     n_pos = 500
@@ -41,56 +62,37 @@ if __name__ == '__main__':
 
     gaussian = np.random.multivariate_normal
 
-    cs = [0.20,]
-    print cs
+    cs = [0.1,]
     for c in cs:
-        vf = 0.2
-    #for vf in validation_fractions:
-
-        pos, neg, pos_sample, unlabeled = gen_sample(n_pos, n_neg)
-        # validation set:
-        _, _, v_p, v_u = gen_sample(int(vf * n_pos), int(vf * n_neg))
-
-
-
-
-
-        # pos only
-        X = np.vstack([pos_sample, unlabeled])
-        y = np.hstack([np.array([1] * pos_sample.shape[0]),
-                        np.array([0] * unlabeled.shape[0]),])
+        positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
+        X = np.vstack([positive_labeled, unlabeled])
+        y = np.hstack([np.array([1] * positive_labeled.shape[0]),
+                       np.array([0] * unlabeled.shape[0]),])
         X, y = sklearn.utils.shuffle(X, y)
         scaler = sklearn.preprocessing.Scaler()
         scaler.fit(X)
         X = scaler.transform(X)
 
+        testX = np.vstack([positive, negative])
+        testY = np.hstack([np.array([1] * positive.shape[0]),
+                           np.array([0] * negative.shape[0]),])
+        testX = scaler.transform(testX)
+        
+        print 'starting LR...'
         posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=100, c=c)
         posonly.fit(X, y)
+        print 'done LR...'
+        print 'posonly tested:', posonly.score(testX, testY)
+
+        print 'starting LR...'
+        sgd = sklearn.linear_model.SGDClassifier(loss='log')
+        sgd.fit(X, y)
+        print 'done LR...'
+        print 'sgd tested:', sgd.score(testX, testY)
 
 
 
-        testX = np.vstack([pos, neg])
-        testy = np.hstack([np.array([1] * pos.shape[0]),
-                            np.array([0] * neg.shape[0]),])
-        scaler = sklearn.preprocessing.Scaler()
-        scaler.fit(testX)
-        testX = scaler.transform(testX)
-
-
-
-
-        data = (pos_sample, unlabeled, v_p, v_u)
-        #data, fixers = logistic.normalize_pu_data(*data)
-        params, estimators = logistic.calculate_estimators(*data, max_iter=1000)
-        theta, thetaM, b = params
-
-        t = ('vf:', vf, 'c:', c, ) + estimators
-        print t
-        table.append(t)
-
-        # run the LR on the true data
-        (thetaTrue, _, _), _ = logistic.calculate_estimators(*(pos, neg, v_p, v_u), max_iter=1000)
-
+        '''
         # unit area ellipse
         fig = pyplot.figure()
         ax = fig.add_subplot(111)
@@ -98,7 +100,7 @@ if __name__ == '__main__':
         ax.scatter(neg[:,0], neg[:,1], s=6, c='r', marker='o', lw=0)
 
         delta = 0.01
-        x, y = np.arange(-8, 8, delta), np.arange(-10, 10, delta)
+        x, y = np.arange(-8.0, 8.0, delta), np.arange(-10.0, 10.0, delta)
         X, Y = np.meshgrid(x, y)
 
         assert X.shape == Y.shape
@@ -107,7 +109,6 @@ if __name__ == '__main__':
         data = np.hstack([X.flatten().reshape(-1, 1), Y.flatten().reshape(-1,1)])
         assert data.shape[0] == (shape[0] * shape[1]) and data.shape[1] == 2
         data = add_x2_y2(data)
-        scaled_data = scaler.transform(data)
 
         # plot the LR on the true labels
         labels = logistic.label_data(data, thetaTrue, normalizer=0.0, binarize=False)
@@ -118,9 +119,9 @@ if __name__ == '__main__':
         labels.shape = shape
         CS = pyplot.contour(X, Y, labels, [0.10,], colors='#AAAAFF')
 
-        labels = posonly.predict_proba(scaled_data)[:,0]
+        labels = posonly.predict_proba(data)[:,0]
         labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#00FF00')
+        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#FF0000')
         #pyplot.clabel(CS, inline=1, fontsize=10)
 
 
@@ -133,3 +134,4 @@ if __name__ == '__main__':
 
         pyplot.title('Logistic regression on synthetic data')
         pyplot.show()
+        '''

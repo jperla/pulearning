@@ -3,6 +3,33 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 
 import logistic
 
+class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
+    """Posonly logistic regression.
+    """
+
+    def __init__(self, eta0=0.1, n_iter=5, c=0.5):
+        self.eta0 = eta0
+        self.n_iter = n_iter
+        self.c = c
+
+    def fit(self, X, y):
+        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.c_, self.wp_, self.wn_ = logistic.posonly_multinomial_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, c=self.c)
+        return self
+
+    def predict(self, X):
+        return np.array([t >=0.5  for t in self.predict_proba(X)[:,0]])
+
+    def predict_proba(self, X):
+        probas = []
+        N = X.shape[0]
+        X = np.hstack([np.ones(N).reshape((N, 1)), X])
+        for r in range(N):
+            PL, PU, N = logistic.posonly_multinomial_probabilities(X[r], self.c_, self.wp_, self.wn_)
+            probas.append([PL + PU, N])
+        return np.array(probas)
+
+
 class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
     """Stochastic Gradient Descent version of logistic regression.
         Implemented in Cython.
@@ -25,6 +52,7 @@ class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
     def predict_proba(self, X):
         a = logistic.label_data(X, self.theta_, binarize=False)
         return np.vstack([1.0 - a, a]).T
+
 
 class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
     """Same as SGD Logistic Regression, but adds a b**2 value 
