@@ -344,6 +344,8 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
 
     wp = np.zeros(M)
     wn = np.zeros(M)
+    b = 0.0
+    initial_c = c
     
     for iteration in xrange(i, max_iter):
         alpha = eta0
@@ -353,28 +355,54 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
             logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(x, c, wp, wn)
 
             # calculate wp
-            d = 0.0
+            dp = 0.0
             if label == 1:
-                d = 1.0
+                dp = 1.0
             else:
-                d = posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn)
-            d -= np.exp(scipy.misc.logsumexp([logPpl, logPpu]))
-            wp += alpha * (d * x)
+                dp = posonly_multinomial_probability_Ppu_given_l0(x, c, wp, wn)
+            dp -= np.exp(scipy.misc.logsumexp([logPpl, logPpu]))
 
             # calculate wn
-            d = 0.0
+            dn = 0.0
             if label == 0:
-                d = posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn)
+                dn = posonly_multinomial_probability_Pn_given_l0(x, c, wp, wn)
             #print d, Pn, x, wn, '#debug'
-            d -= np.exp(logPn)
-            wn += alpha * (d * x)
+            dn -= np.exp(logPn)
 
-            # TODO: calculate c
+            # calculate c
+            db = 0.0
+            if label == 1:
+                db = 1.0 / c
+            else:
+                db = -1 * np.exp(scipy.misc.logsumexp([logPpl, logPpu]) - scipy.misc.logsumexp([logPpu, logPn])) / c
+
+                xwp = wp.dot(x)
+                xwn = wn.dot(x)
+                db2 = -1 * np.exp(xwp - scipy.misc.logsumexp([np.log(1.0 - c) + xwp, xwn]))
+                if (abs(db - db2) > 0.0001):
+                    #print db, db2
+                    pass
+            #db *= (np.exp(b) / ((np.exp(b) + 1.0) ** 2))
+             
+            wp += alpha * (dp * x)
+            wn += alpha * (dn * x)
+
+            c += alpha * db
+            c = initial_c
+            #c = 1.0 / (1.0 + np.exp(-b))
+
+            if c <= 0:
+                c = 1e-5
+            elif c > 1.0:
+                c = 1.0 - 1e-5
+
+            '''
             c = c
+            '''
        
-        if iteration % 2 == 0:
+        if iteration % 10 == 0:
             ll =  np.sum(posonly_multinomial_log_probability_of_label(x, y[r], c, wp, wn) for r in xrange(N))
-            print c, wp, wn
+            print c, b, wp, wn
             print iteration, 'll: %s' % ll
     return c, wp, wn
 
