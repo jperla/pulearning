@@ -355,7 +355,7 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
             c = 1.0 / (1.0 + np.exp(b))
        
         if iteration % 20 == 0:
-            ll =  np.sum(posonly_multinomial_log_probability_of_label(x, y[r], b, w) for r in xrange(N))
+            ll =  np.sum(posonly_multinomial_log_probability_of_label(X[r], y[r], b, w) for r in xrange(N))
             print c, b, w
             print iteration, 'll: %s' % ll
     return b, w

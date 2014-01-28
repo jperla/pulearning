@@ -206,11 +206,11 @@ $$
 
 This was implemented in Python and numpy.
 
-\label{Reproduce Elkan 2008 graph with generated data}
+\label{Reproduce Elkan 2008 graph with generated data (c=0.20)}
 \begin{figure}[ht!]
 \centering
 \includegraphics[width=90mm]{newgraph.png}
-\caption{When we run the code and fix the value of c to the true value, we generate a strong curve. The next step is to learn c jointly. We also need to calculate 2x fewer parameters. Finally, we need to ensure that likelihood is going up at each epoch.}
+\caption{The deep blue marks a classifier trained using the true labels. It represents the best possible classifier that can be learned from positive-only data. The light purple line marks a classifier trained using the labeled vs unlabeled dataset, representing a naive baseline classifier.  The red line is the modified logistic regression model, which improves on the baseline.  The green line marks the multinomial logistic regression model which performs almost as well as knowing the true labels.}
 \end{figure}
 
 \end{document}

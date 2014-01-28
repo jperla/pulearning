@@ -2,6 +2,7 @@
 
 from matplotlib import pyplot
 import sklearn
+import sklearn.dummy
 import numpy as np
 
 np.seterr(all='raise')
@@ -76,22 +77,28 @@ if __name__ == '__main__':
         testX = np.vstack([positive, negative])
         testY = np.hstack([np.array([1] * positive.shape[0]),
                            np.array([0] * negative.shape[0]),])
+        testX, testY = sklearn.utils.shuffle(testX, testY)
         testX = scaler.transform(testX)
         
-        print 'starting LR...'
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=100, c=c)
+        print 'c:', c
+
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=50, c=c, eta0=0.1)
         posonly.fit(X, y)
-        print 'done LR...'
-        print 'posonly tested:', posonly.score(testX, testY)
+        print 'posonly:', posonly.score(testX, testY)
 
-        print 'starting LR...'
-        sgd = sklearn.linear_model.SGDClassifier(loss='log')
-        sgd.fit(X, y)
-        print 'done LR...'
-        print 'sgd tested:', sgd.score(testX, testY)
-
-        print 'starting LR...'
         true_sgd = sklearn.linear_model.SGDClassifier(loss='log')
         true_sgd.fit(testX, testY)
-        print 'done LR...'
         print 'maximum:', true_sgd.score(testX, testY)
+
+        sgd = sklearn.linear_model.SGDClassifier(loss='log')
+        sgd.fit(X, y)
+        print 'naive sgd:', sgd.score(testX, testY)
+
+        dumb = sklearn.dummy.DummyClassifier(strategy='most_frequent',random_state=0)
+        dumb.fit(X, y)
+        print dumb.score(testX, testY)
+
+        dumb = sklearn.dummy.DummyClassifier(strategy='stratified',random_state=0)
+        dumb.fit(X, y)
+        print dumb.score(testX, testY)
+

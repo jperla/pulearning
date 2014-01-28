@@ -64,7 +64,7 @@ if __name__ == '__main__':
         scaler.fit(X)
         X = scaler.transform(X)
 
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=100, c=c)
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=1000, c=c)
         posonly.fit(X, y)
 
 
