@@ -43,499 +43,324 @@
 
 % The \icmltitle you define below is probably too long as a header.
 % Therefore, a short form for the running title is supplied here:
-\icmltitlerunning{Submission and Formatting Instructions for ICML 2014}
+\icmltitlerunning{Augmented Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
 
 \begin{document} 
 
 \twocolumn[
-\icmltitle{Submission and Formatting Instructions for the Thirty-first \\ 
-           International Conference on Machine Learning (ICML 2014)}
+\icmltitle{Augmented Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
 
 % It is OKAY to include author information, even for blind
 % submissions: the style file will automatically remove it for you
 % unless you've provided the [accepted] option to the icml2014
 % package.
-\icmlauthor{Your Name}{email@yourdomain.edu}
-\icmladdress{Your Fantastic Institute,
-            314159 Pi St., Palo Alto, CA 94306 USA}
-\icmlauthor{Your CoAuthor's Name}{email@coauthordomain.edu}
-\icmladdress{Their Fantastic Institute,
-            27182 Exp St., Toronto, ON M6H 2T1 CANADA}
+\icmlauthor{Joseph Perla}{jjperla@cs.ucsd.edu}
+\icmladdress{University of California, San Diego,
+            9500 Gilman Dr, La Jolla, California 92093 USA}
+\icmlauthor{Charles Elkan}{elkan@ucsd.edu}
+\icmladdress{University of California, San Diego,
+            9500 Gilman Dr, La Jolla, California 92093 USA}
 
 % You may provide any keywords that you 
 % find helpful for describing your paper; these are used to populate 
 % the "keywords" metadata in the PDF but will not be shown in the document
-\icmlkeywords{boring formatting information, machine learning, ICML}
+\icmlkeywords{logistic regression, multinomial logistic regression, machine learning, ICML}
 
 \vskip 0.3in
 ]
 
 \begin{abstract} 
-There are two review cycles for ICML 2014, with full paper submissions 
-due on October 4, 2013 and January 31, 2014. Reviewing 
-will be blind to the identities of the authors, and therefore identifying
-information must not appear in any way in papers submitted for review. 
-Submissions must be in PDF, with an 8 page length limit ( 9 pages are allowed if the 9-th page contains \emph{only} references).
+In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.  We develop two simple modifications of logistic regression which classify the true labels of the training set given only the restricted set of labels.
+
 \end{abstract} 
 
-\section{Electronic Submission}
-\label{submission}
 
-As in the past few years, ICML will rely exclusively on
-electronic formats for submission and review. 
+\section{Introduction}
+
+In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.
+
+\section{Algorithms}
+
+\subsection{Optimal}
+Learning on a training set with only some positively labeled data cannot achieve a higher accuracy on the test data than training on the same training dataset where all labels are known (if so, then one could throw out the negative labels in the latter case and achieve the same results).  Therefore, we compare our results to training an SGD logistic regression classifier (LR) and a standard RBF-kernel SVM (SVM) on the training set with all labels known and correctly labeled.  This SVM and all SVMs in this paper were trained using a linear kernel, because the number of features exceeds the number of examples, and three-fold cross-validation was used to determine which value of the regularizer $C \in {1e-5, ... 1e5}$ performs optimally on the training set.
+
+\subsection{Baseline}
+
+As a baseline, we show results for running standard logistic regression and an SVM using the positive labeled data versus the unlabeled data.  This overfits to the subset of labeled positive examples which misclassifies many positive examples on the test set.
 
 
-\subsection{Templates for Papers}
+\subsection{Previous Work}
+Previous work\cite{elkan08} achieved maximal classification accuracy with a Biased SVM, an SVM where the positive labeled examples were given a different misclassification penalty than the unlabeled examples.  The standard SVM algorithm multiplies all misclassification penalties by the same constant factor $C$ for all examples. A Biased SVM has two values $C_u$ and $C_p$ which multiply the penalty by different factors for errors on unlabeled and positive examples, respectively.
 
-Electronic templates for producing papers for submission are available
-for \LaTeX\/ . Templates are accessible on the World
-Wide Web at:\\
-\textbf{\texttt{http://icml.cc/2014/}}
+\subsection{Weighted SVM}
+We also show results for a weighted SVM algorithm, where the SVM classifier is run once to assign probabilities of assignment, then those probabilities are used to weigh the inputs to a second SVM classifier which produces the final output.  The results of the Weighted SVM are strong in the previous work, but the results here are weaker  due to poor parameter selection for the SVMs.
 
-\noindent
-Send questions about these electronic templates to
-\texttt{program@icml.cc}.
+\subsection{Modified Logistic Regression}
+The contribution of this paper is a modified version of logistic regression that we solve using SGD (Modified LR).  Whereas standard logistic regression optimizes the following objective:
 
-The formatting instructions below will be enforced for initial submissions and camera-ready copies. 
-\begin{itemize}
-\item The maximum paper length is 8 pages excluding references, and 
-9 pages including references.
-\item Do not alter the style template; in particular, do not compress the paper format 
-by reducing the vertical spaces.
-\item Do not include author information or acknowledgments in your
-  initial submission. 
-\item Place figure captions {\em under} the figure (and omit titles from
-  inside the graphic file itself).  Place table captions {\em over}
-  the table.
-\item References must include page numbers whenever possible and be as
-  complete as possible.  Place multiple citations in chronological order.  
-\end{itemize}
-Please see below for details on each of these items.
+$$ \frac{1}{1 + e^{\overline{w} \cdot \overline{x}}} $$
 
-\subsection{Submitting Papers}
+Our modified logistic regression adds a term $b^2$ which allows a proportion of the unlabeled examples to be classified as positive. From the final value of $b^2$, we calculate the proportion of positive examples which are labeled (taking the assumption that the labeled positive examples are selected completely at random and have no bias in which ones are labeled).
 
-Submission to ICML 2014 will be entirely electronic, via a web site
-(not email).  The URL and information about the submission process
-are available on the conference web site at
+$$ \frac{1}{1 + b^2 + e^{\overline{w} \cdot \overline{x}}} $$
 
-\textbf{\texttt{http://icml.cc/2014/}}
+This algorithm which, in a principled way, takes into account the unlabeled positive data, performs nearly as well as the classifiers run using the fully labeled training set, and much better than previous work and the baseline naive classifiers.
 
-{\bf Paper Deadline:} The deadline for paper submission to ICML 2014
-is at 23:59 Universal Time (3:59 Pacific Daylight Time) on the due dates
-(October 4, or January 31, depending on the review cycle).  
-If your full submission does not reach us by this time, it will 
-not be considered for publication. There is no separate abstract submission.
 
-{\bf Anonymous Submission:} To facilitate blind review, no identifying
-author information should appear on the title page or in the paper
-itself.  Section~\ref{author info} will explain the details of how to
-format this.
+\section{Estimating the proportion of labeled examples}
+Let $s$ be a binary indicator variable signifying if an example is labeled, and let $y$ be the label of the example with features $x$. Let $c = p(s=1|y=1)$ the proportion of truly positive examples which are visibly labeled as such. $P$ is the positively labeled data, and $U$ is the unlabeled data. From $c$, we can easily derive $p(y=1)$ the fraction of the data which are truly positive via Bayes' Rule:
 
-{\bf Simultaneous Submission:} ICML will not accept any paper which,
-at the time of submission, is under review for another conference or
-has already been published. This policy also applies to papers that
-overlap substantially in technical content with conference papers
-under review or previously published. ICML submissions must not be
-submitted to other conferences during ICML's review period. Authors
-may submit to ICML substantially different versions of journal papers
-that are currently under review by the journal, but not yet accepted
-at the time of submission. Informal publications, such as technical
-reports or papers in workshop proceedings which do not appear in
-print, do not fall under these restrictions.
+$$ p(y=1) = \frac{p(s=1)}{p(s = 1|y = 1)} =  \frac{|P|}{p(s = 1|y = 1)|P+U|} = \frac{|P|}{c|P+U|} $$
 
-\medskip
+Previous work on this topic\cite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(s=1|x) = c = p(s=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This occurs often when the positive and negative distributions overlap (and never when they are separable). The correct derivation is therefore
 
-To ensure our ability to print submissions, authors must provide their
-manuscripts in \textbf{PDF} format.  Furthermore, please make sure
-that files contain only Type-1 fonts (e.g.,~using the program {\tt
-  pdffonts} in linux or using File/DocumentProperties/Fonts in
-Acrobat).  Other fonts (like Type-3) might come from graphics files
-imported into the document.
+$$ g(x) = p(s=1|x) $$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|x,y=0)p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + p(s=1|y=0)p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x) + 0 \cdot p(y=0|x)$$
+$$ g(x) = p(s=1|x,y=1)p(y=1|x)$$
+$$ g(x) = c \cdot p(y=1|x)$$
 
-Authors using \textbf{Word} must convert their document to PDF.  Most
-of the latest versions of Word have the facility to do this
-automatically.  Submissions will not be accepted in Word format or any
-format other than PDF. Really. We're not joking. Don't send Word.
+We can derive various estimators of $c$ using the classifiers, and the best seems to be based on $b$ calculated with the Modified Logistic Regression algorithm above.
 
-Those who use \textbf{\LaTeX} to format their accepted papers need to
-pay close attention to the typefaces used.  Specifically, when
-producing the PDF by first converting the dvi output of \LaTeX\ to Postscript
-the default behavior is to use non-scalable Type-3 PostScript bitmap
-fonts to represent the standard \LaTeX\ fonts. The resulting document
-is difficult to read in electronic form; the type appears fuzzy. To
-avoid this problem, dvips must be instructed to use an alternative
-font map.  This can be achieved with
-something like the following commands:\\[0.5em]
-{\bf dvips -Ppdf -tletter -G0 -o paper.ps paper.dvi}\\
-{\bf ps2pdf paper.ps}\\[0.5em]
-Note that it is a zero following the ``-G''.  This tells dvips to use
-the config.pdf file (and this file refers to a better font mapping).
+$$c \approx \frac{1}{1 + b^2}$$
 
-Another alternative is to use the \textbf{pdflatex} program instead of
-straight \LaTeX. This program avoids the Type-3 font problem, however
-you must ensure that all of the fonts are embedded (use {\tt
-pdffonts}). If they are not, you need to configure pdflatex to use a
-font map file that specifies that the fonts be embedded. Also you
-should ensure that images are not downsampled or otherwise compressed
-in a lossy way.
+This is because Modified Logistic Regression generates calibrated probabilities in the same way that standard logistic regression does, but instead of having a maximum probability of $1$ for a positive label, it can only have a maximum probability of $p(s=1|y=1)=c$, since any positive example has at most that probability of being labeled.  Modified Logistic Regression calibrates its probabilities directly using the data and finds $b$ during training of
 
-Note that the 2014 style files use the {\tt hyperref} package to
-make clickable links in documents.  If this causes problems for you,
-add {\tt nohyperref} as one of the options to the {\tt icml2014}
-usepackage statement.
+$$g(x) = \frac{1}{1 + b^2 + e^{\overline{w} \cdot \overline{x}}}$$
 
-\subsection{Reacting to Reviews}
-We will continue the ICML tradition in which the authors are given the
-option of providing a short reaction to the initial reviews. These
-reactions will be taken into account in the discussion among the
-reviewers and area chairs.
+which has a maximum when $\overline{w} \cdot \overline{x}=-\infty$
 
-\subsection{Submitting Final Camera-Ready Copy}
+$$g(x) = \frac{1}{1 + b^2} \approx c$$
 
-The final versions of papers accepted for publication should follow the
-same format and naming convention as initial submissions, except of
-course that the normal author information (names and affiliations)
-should be given.  See Section~\ref{final author} for details of how to
-format this.
 
-The footnote, ``Preliminary work.  Under review by the International
-Conference on Machine Learning (ICML).  Do not distribute.'' must be
-modified to ``\textit{Proceedings of the
-$\mathit{31}^{st}$ International Conference on Machine Learning},
-Beijing, China, 2014.  JMLR: W\&CP volume 32. 
-Copyright 2014 by the author(s).''
+\section{The Multinomial Regression Model}
 
-For those using the \textbf{\LaTeX} style file, simply change
-$\mathtt{\backslash usepackage\{icml2014\}}$ to 
+We model the positive-only problem with a multinomial regression in the following way: assume there are 3 classes.  One class is positive and labeled ($P_L$), one is positive and unlabeled ($P_U$), and the last is negative and unlabeled (N).  There are no negative labeled samples.  We use the standard multinomial regression probabilities, but we share the weights $w_p$ between the positive-labeled ($P_L$) and positive-unlabeled ($P_U$) classes. Finally, we include a bias term $b$ which biases the constant fraction of the positive samples which are labeled.  $Z_N$ is the normalization factor:
 
-\verb|\usepackage[accepted]{icml2014}|
+$$
+p(k=P_L | x, w_p, w_n) =  \frac{e^{w_p \cdot x}}{Z_N} = \frac{e^{w_p \cdot x}}{e^{w_p \cdot x} + \cdot e^{w_p \cdot x + b} + e^{w_n \cdot x}} = \frac{e^{w_p \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
 
-\noindent
-Authors using \textbf{Word} must edit the
-footnote on the first page of the document themselves.
+$$
+p(k=P_U | x, w_p, w_n) =  \frac{e^{w_p \cdot x + b}}{Z_N} = \frac{e^{w_p \cdot x + b}}{e^{w_p \cdot x} + e^{w_p \cdot x + b} + e^{w_n \cdot x}} = \frac{e^{w_p \cdot x + b}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
 
-Camera-ready copies should have the title of the paper as running head
-on each page except the first one.  The running title consists of a
-single line centered above a horizontal rule which is $1$ point thick.
-The running head should be centered, bold and in $9$ point type.  The
-rule should be $10$ points above the main text.  For those using the
-\textbf{\LaTeX} style file, the original title is automatically set as running
-head using the {\tt fancyhdr} package which is included in the ICML
-2014 style file package.  In case that the original title exceeds the
-size restrictions, a shorter form can be supplied by using
+$$
+p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_N} = \frac{e^{w_n \cdot x}}{e^{w_p \cdot x} + e^{w_p \cdot x + b} + e^{w_n \cdot x}} = \frac{e^{w_n \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+$$
 
-\verb|\icmltitlerunning{...}|
+Notice that, $\forall x$,
 
-just before $\mathtt{\backslash begin\{document\}}$.
-Authors using \textbf{Word} must edit the header of the document themselves.
+$$
+\frac{p(k=P_L | x, w_p, w_n)}{p(k=P_L | x, w_p, w_n) + p(k=P_U | x, w_p, w_n)} = \frac{1}{1 + e^b} = c.
+$$
 
-\section{Format of the Paper} 
- 
-All submissions must follow the same format to ensure the printer can
-reproduce them without problems and to let readers more easily find
-the information that they desire.
+Thus, $c$ is the constant fraction of positive samples which are labeled.
 
-\subsection{Length and Dimensions}
+Finally, we can divide by $e^{w_p \cdot x}$ through all the terms in order to consolidate parameters. Let $w = w_n - w_p$,
 
-Papers must not exceed eight (8) pages, including all figures, tables,
-and appendices, but excluding references. When references are included,
-the paper must not exceed nine (9) pages. Any submission that exceeds 
-this page limit or that diverges significantly from the format specified 
-herein will be rejected without review.
+$$
+p(k=P_L | x, w_p, w_n) = \frac{e^{w_p \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{1}{1 + e^b + e^{w \cdot x}}
+$$
 
-The text of the paper should be formatted in two columns, with an
-overall width of 6.75 inches, height of 9.0 inches, and 0.25 inches
-between the columns. The left margin should be 0.75 inches and the top
-margin 1.0 inch (2.54~cm). The right and bottom margins will depend on
-whether you print on US letter or A4 paper, but all final versions
-must be produced for US letter size.
+$$
+p(k=P_U | x, w_p, w_n) = \frac{e^{w_p \cdot x + b}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{e^b}{1 + e^b + e^{w \cdot x}}
+$$
 
-The paper body should be set in 10~point type with a vertical spacing
-of 11~points. Please use Times  typeface throughout the text.
-%Please use the default typeface (Computer Modern) throughout the text.
+$$
+p(k=N | x, w_p, w_n) = \frac{e^{w_n \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{e^{w \cdot x}}{1 + e^b + e^{w \cdot x}}
+$$
 
-\subsection{Title}
+So we only need to learn the vector $w$.
 
-The paper title should be set in 14~point bold type and centered
-between two horizontal rules that are 1~point thick, with 1.0~inch
-between the top rule and the top edge of the page. Capitalize the
-first letter of content words and put the rest of the title in lower
-case.
+\section{Learning $\beta = b, w$ from $D$}
 
-\subsection{Author Information for Submission}
-\label{author info}
+Assuming we have independently drawn data $D$, the conditional log likelihood, where $\beta = c, w_p, w_n$ is
+$$
+\log{p(D | \beta)} = \log \prod_{j=1...n}{p(\ell_j, x_j | \beta)} = \sum_{j=1...n}{\log{p(\ell_j, x_j | \beta)}} = \sum_{j=1...n}{\log{p(\ell_j | x_j, \beta)}} \cdot p(x_j | \beta)
+$$
 
-To facilitate blind review, author information must not appear.  If
-you are using \LaTeX\/ and the \texttt{icml2014.sty} file, you may use
-\verb+\icmlauthor{...}+ to specify authors.  The author information
-will simply not be printed until {\tt accepted} is an argument to the
-style file. Submissions that include the author information will not
-be reviewed.
+where $\ell_j$ is an indicator variable describing whether the sample is labeled or not. $\ell_j = 1$ if and only if $k_j=P_L$, otherwise $k_j = N$ or $k_j=P_U$ and $\ell_j = 0$.  Also note that $p(x_j|\beta) = p(x_j)$ and we assume uninformative uniform prior for $x_j$, so let $p(x_j|\beta) = 1$.
 
-\subsubsection{Self-Citations}
+The maximum likelihood (ML) estimate $\hat \beta$ is the value of $\beta$ maximizing the likelihood of the data $D$:
+$$
+\hat \beta = arg max_{\beta} p(D | \beta) = arg max_{\beta} \log{p(D | \beta)}.
+$$
 
-If your are citing published papers for which you are an author, refer
-to yourself in the third person. In particular, do not use phrases
-that reveal your identity (e.g., ``in previous work \cite{langley00}, we 
-have shown \ldots'').
+\subsection{Stochastic Gradient}
+We want to use stochastic gradient following to learn the parameters $\beta$. So take the partial derivatives of the log conditional likelihood (LCL) for each parameter.
 
-Do not anonymize citations in the reference section by removing or
-blacking out author names. The only exception are manuscripts that are
-not yet published (e.g. under submission). If you choose to refer to
-such unpublished manuscripts \cite{anonymous}, anonymized copies have 
-to be submitted
-as Supplementary Material via CMT. However, keep in mind that an ICML
-paper should be self contained and should contain sufficient detail
-for the reviewers to evaluate the work. In particular, reviewers are
-not required to look a the Supplementary Material when writing their
-review.
+\subsubsection{$ \nabla_{w_i}{Err_R (D, \beta)}$}
 
-\subsubsection{Camera-Ready Author Information}
-\label{final author}
+$$
+\nabla_{w_i}{Err_R (D, \beta)} = \frac{\partial}{\partial w_i} \log{p(D|\beta)} =  \sum_{j=1...n}{\frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)}}
+$$
 
-If a paper is accepted, a final camera-ready copy must be prepared.
-%
-For camera-ready papers, author information should start 0.3~inches
-below the bottom rule surrounding the title. The authors' names should
-appear in 10~point bold type, electronic mail addresses in 10~point
-small capitals, and physical addresses in ordinary 10~point type.
-Each author's name should be flush left, whereas the email address
-should be flush right on the same line. The author's physical address
-should appear flush left on the ensuing line, on a single line if
-possible. If successive authors have the same affiliation, then give
-their physical address only once.
+so for each $j$,
 
-A sample file (in PDF) with author names is included in the ICML2014 
-style file package.
+$$
+ = \frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)}
+$$
 
-\subsection{Abstract}
+$$
+ = \frac{\partial}{\partial w_i}
+		\log{\Bigg(
+			I(\ell_j=1) \cdot \left( \frac{1}{1 + e^b + e^{w \cdot x}} \right) + 
+			I(\ell_j=0) \cdot \left(\frac{e^b}{1 + e^b + e^{w \cdot x}} + \frac{e^{w \cdot x}}{1 + e^b + e^{w \cdot x}} \right)
+		\Bigg)}
+$$
 
-The paper abstract should begin in the left column, 0.4~inches below
-the final address. The heading `Abstract' should be centered, bold,
-and in 11~point type. The abstract body should use 10~point type, with
-a vertical spacing of 11~points, and should be indented 0.25~inches
-more than normal on left-hand and right-hand margins. Insert
-0.4~inches of blank space after the body. Keep your abstract brief and 
-self-contained,
-limiting it to one paragraph and no more than six or seven sentences.
+$$
+ = \frac{\partial}{\partial w_i}
+		\log{\Bigg(
+		    \frac{
+			I(\ell_j=1) + 
+			I(\ell_j=0) \cdot \left( e^b + e^{w \cdot x} \right)
+		     }{1 + e^b + e^{w \cdot x}}
+		\Bigg)}
+$$
 
-\subsection{Partitioning the Text} 
+$$
+ = \frac{\partial}{\partial w_i}
+		\log{\bigg(
+			I(\ell_j=1) + 
+			I(\ell_j=0) \cdot \left( e^b + e^{w \cdot x} \right)
+		\bigg)}
+		- \frac{\partial}{\partial w_i}
+		 \log{\bigg(
+			1 + e^b + e^{w \cdot x}
+		\bigg)}
+$$
 
-You should organize your paper into sections and paragraphs to help
-readers place a structure on the material and understand its
-contributions.
 
-\subsubsection{Sections and Subsections}
+$$
+ = I(\ell_j=1) \cdot \frac{\partial}{\partial w_i}
+		\log{(1)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
+		\log{ \left( e^b + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial w_i}
+		 \log{\bigg(
+			1 + e^b + e^{w \cdot x}
+		\bigg)}
+$$
 
-Section headings should be numbered, flush left, and set in 11~pt bold
-type with the content words capitalized. Leave 0.25~inches of space
-before the heading and 0.15~inches after the heading.
+$$
+ = I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
+		\log{  \left( e^b + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial w_i}
+		 \log{\bigg(
+			1 + e^b + e^{w \cdot x}
+		\bigg)}
+$$
 
-Similarly, subsection headings should be numbered, flush left, and set
-in 10~pt bold type with the content words capitalized. Leave
-0.2~inches of space before the heading and 0.13~inches afterward.
 
-Finally, subsubsection headings should be numbered, flush left, and
-set in 10~pt small caps with the content words capitalized. Leave
-0.18~inches of space before the heading and 0.1~inches after the
-heading. 
+$$
+ = I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w \cdot x}
+		}{
+			e^b + e^{w \cdot x}
+		} \cdot x_{j,i}
+		- \frac{\partial}{\partial w_i}
+		 \log{\Big(
+			1 + e^b + e^{w \cdot x}
+		\Big)}
+$$
 
-Please use no more than three levels of headings.
+$$
+ = I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w \cdot x}
+		}{
+			e^b + e^{w \cdot x}
+		} \cdot x_{j,i}
+		- \frac{e^{w \cdot x}}{
+			1 + e^b + e^{w \cdot x}
+		} \cdot x_{j,i}
+$$
 
-\subsubsection{Paragraphs and Footnotes}
+$$
+ = x_{j,i} \cdot
+    \Big(	I(\ell_j=0) \cdot p(k_j=N | \ell_j=0, x_j, \beta) - 
+		p(k_j=N | x_j, \beta)
+    \Big)
+$$
 
-Within each section or subsection, you should further partition the
-paper into paragraphs. Do not indent the first line of a given
-paragraph, but insert a blank line between succeeding ones.
- 
-You can use footnotes\footnote{For the sake of readability, footnotes
-should be complete sentences.} to provide readers with additional
-information about a topic without interrupting the flow of the paper. 
-Indicate footnotes with a number in the text where the point is most
-relevant. Place the footnote in 9~point type at the bottom of the
-column in which it appears. Precede the first footnote in a column
-with a horizontal rule of 0.8~inches.\footnote{Multiple footnotes can
-appear in each column, in the same order as they appear in the text,
-but spread them across columns and pages if possible.}
+\subsubsection{$ \nabla_{b}{Err_R (D, \beta)}$}
 
-\begin{figure}[ht]
+
+Similarly for the parameter $b$ in $\beta$, for each $j$,
+
+
+$$
+ = \frac{\partial}{\partial c}\log{p(\ell_j | x_j, \beta)}
+$$
+
+
+$$
+ = I(\ell_j=0) \cdot \frac{\partial}{\partial b}
+		\log{  \left( e^b + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial b}
+		 \log{\bigg(
+			1 + e^b + e^{w \cdot x}
+		\bigg)}
+$$
+
+
+$$
+ = I(\ell_j=0) \cdot
+		\frac{1}{e^b + e^{w \cdot x}}
+		-
+		 \frac{1}{
+			1 + e^b + e^{w \cdot x}
+		}
+$$
+
+
+$$
+ = I(\ell_j=0) \cdot
+		\frac{p(\ell_j=1 | x_j,\beta)}{p(\ell_j=0 | x_j,\beta)}
+		-
+		 p(\ell_j=1 | x_j,\beta)
+$$
+
+\section{Experiments}
+
+\subsection{Synthetic Example}
+
+Here, we reproduce a version of Figure 1 in \cite{elkan08}. 
+
+\label{Synthetic data}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{syntheticlr.png}
+\caption{Blue points are positive examples, red negative. The largest dark blue ellipse is the result of training standard LR on all of the data labeled. The smaller light blue ellpise is the result of training standard LR on the positive vs unlabeled examples. The red ellipse is from training Modified LR on the positive vs unlabeled examples. The features were $x$, $y$, $x \cdot x$, and $y \cdot y$.  Modified LR captures a more representative sample of the positive datapoints, as well as calculating the approximate value of $c = 0.2 \approx 0.196$.   500 positive datapoints were generated using a random gaussian with mean (2, 2) and covariance [[1, 1], [1, 4]].  1000 negative datapoints were generated with mean (-2, -3) and covariance [[4, -1], [-1, 4]]}
+\end{figure}
+
+
+\subsection{SwissProt Dataset}
+
+The algorithms were run on the SwissProt\cite{elkan08} dataset of 7359 proteins which each have a sparse set of 24081 binary features related to characteristics of the proteins. It contains 4558 negative examples, 2453 labeled positive examples, and 348 unlabeled positive examples.   We consider the negative and unlabeled positive examples together as the unlabeled dataset.
+
+
+\label{ROC for Protein Dataset}
+\begin{figure}[ht!]
+\centering
+\includegraphics[width=90mm]{rocproteindata.png}
+\caption{The ROC curves for various learning algorithms on sets of the protein dataset.  Note that we zoom into the most interesting region in the top left.  As expected, both LR and SVM trained on the true labels perform the best and approximately equally on the test set (10 holdout). Standard LR and SVM on the positive data versus the unlabeled data perform poorly.  The best previous work, Biased SVM, does not perform much better than the baselines.  The Modified Logistic Regression trained on the positive labeled data and unlabeled data performs nearly as well on the test set as the classifiers trained with full knowledge of all positive and negative labels.}
+\end{figure}
+
+\label{ROC for Swapped Protein Dataset}
+\begin{figure}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=\columnwidth]{icml_numpapers}}
-\caption{Historical locations and number of accepted papers for International
-  Machine Learning Conferences (ICML 1993 -- ICML 2008) and
-  International Workshops on Machine Learning (ML 1988 -- ML
-  1992). At the time this figure was produced, the number of
-  accepted papers for ICML 2008 was unknown and instead estimated.}
+\centerline{\includegraphics[width=\columnwidth]{rocswappedproteindata.png}}
+\caption{We re-run the algorithms from Figure 1 on the same dataset, but swapping the unlabeled positive examples for the labeled positive examples. Our new dataset contains 4558 negative examples, 2453 unlabeled positive examples, and only 348 labeled positive examples.  Modified LR still performs significantly better than baselines and previous work, although not as well as knowing the full dataset.  These results are impressive because less than 5\% of the examples are labeled, all of which are positive labels. The weighted SVM and other SVMs may not be optimally calibrated.}
 \label{icml-historical}
 \end{center}
 \vskip -0.2in
 \end{figure} 
-
-\subsection{Figures}
- 
-You may want to include figures in the paper to help readers visualize
-your approach and your results. Such artwork should be centered,
-legible, and separated from the text. Lines should be dark and at
-least 0.5~points thick for purposes of reproduction, and text should
-not appear on a gray background.
-
-Label all distinct components of each figure. If the figure takes the
-form of a graph, then give a name for each axis and include a legend
-that briefly describes each curve. Do not include a title inside the
-figure; instead, the caption should serve this function.
-
-Number figures sequentially, placing the figure number and caption
-{\it after\/} the graphics, with at least 0.1~inches of space before
-the caption and 0.1~inches after it, as in
-Figure~\ref{icml-historical}.  The figure caption should be set in
-9~point type and centered unless it runs two or more lines, in which
-case it should be flush left.  You may float figures to the top or
-bottom of a column, and you may set wide figures across both columns
-(use the environment {\tt figure*} in \LaTeX), but always place
-two-column figures at the top or bottom of the page.
-
-\subsection{Algorithms}
-
-If you are using \LaTeX, please use the ``algorithm'' and ``algorithmic'' 
-environments to format pseudocode. These require 
-the corresponding stylefiles, algorithm.sty and 
-algorithmic.sty, which are supplied with this package. 
-Algorithm~\ref{alg:example} shows an example. 
-
-\begin{algorithm}[tb]
-   \caption{Bubble Sort}
-   \label{alg:example}
-\begin{algorithmic}
-   \STATE {\bfseries Input:} data $x_i$, size $m$
-   \REPEAT
-   \STATE Initialize $noChange = true$.
-   \FOR{$i=1$ {\bfseries to} $m-1$}
-   \IF{$x_i > x_{i+1}$} 
-   \STATE Swap $x_i$ and $x_{i+1}$
-   \STATE $noChange = false$
-   \ENDIF
-   \ENDFOR
-   \UNTIL{$noChange$ is $true$}
-\end{algorithmic}
-\end{algorithm}
- 
-\subsection{Tables} 
- 
-You may also want to include tables that summarize material. Like 
-figures, these should be centered, legible, and numbered consecutively. 
-However, place the title {\it above\/} the table with at least 
-0.1~inches of space before the title and the same after it, as in 
-Table~\ref{sample-table}. The table title should be set in 9~point 
-type and centered unless it runs two or more lines, in which case it
-should be flush left.
-
-% Note use of \abovespace and \belowspace to get reasonable spacing 
-% above and below tabular lines. 
-
-\begin{table}[t]
-\caption{Classification accuracies for naive Bayes and flexible 
-Bayes on various data sets.}
-\label{sample-table}
-\vskip 0.15in
-\begin{center}
-\begin{small}
-\begin{sc}
-\begin{tabular}{lcccr}
-\hline
-\abovespace\belowspace
-Data set & Naive & Flexible & Better? \\
-\hline
-\abovespace
-Breast    & 95.9$\pm$ 0.2& 96.7$\pm$ 0.2& $\surd$ \\
-Cleveland & 83.3$\pm$ 0.6& 80.0$\pm$ 0.6& $\times$\\
-Glass2    & 61.9$\pm$ 1.4& 83.8$\pm$ 0.7& $\surd$ \\
-Credit    & 74.8$\pm$ 0.5& 78.3$\pm$ 0.6&         \\
-Horse     & 73.3$\pm$ 0.9& 69.7$\pm$ 1.0& $\times$\\
-Meta      & 67.1$\pm$ 0.6& 76.5$\pm$ 0.5& $\surd$ \\
-Pima      & 75.1$\pm$ 0.6& 73.9$\pm$ 0.5&         \\
-\belowspace
-Vehicle   & 44.9$\pm$ 0.6& 61.5$\pm$ 0.4& $\surd$ \\
-\hline
-\end{tabular}
-\end{sc}
-\end{small}
-\end{center}
-\vskip -0.1in
-\end{table}
-
-Tables contain textual material that can be typeset, as contrasted 
-with figures, which contain graphical material that must be drawn. 
-Specify the contents of each row and column in the table's topmost
-row. Again, you may float tables to a column's top or bottom, and set
-wide tables across both columns, but place two-column tables at the
-top or bottom of the page.
- 
-\subsection{Citations and References} 
-
-Please use APA reference format regardless of your formatter
-or word processor. If you rely on the \LaTeX\/ bibliographic 
-facility, use {\tt natbib.sty} and {\tt icml2014.bst} 
-included in the style-file package to obtain this format.
-
-Citations within the text should include the authors' last names and
-year. If the authors' names are included in the sentence, place only
-the year in parentheses, for example when referencing Arthur Samuel's
-pioneering work \yrcite{Samuel59}. Otherwise place the entire
-reference in parentheses with the authors and year separated by a
-comma \cite{Samuel59}. List multiple references separated by
-semicolons \cite{kearns89,Samuel59,mitchell80}. Use the `et~al.'
-construct only for citations with three or more authors or after
-listing all authors to a publication in an earlier reference \cite{MachineLearningI}.
-
-Authors should cite their own work in the third person
-in the initial version of their paper submitted for blind review.
-Please refer to Section~\ref{author info} for detailed instructions on how to
-cite your own papers.
-
-Use an unnumbered first-level section heading for the references, and 
-use a hanging indent style, with the first line of the reference flush
-against the left margin and subsequent lines indented by 10 points. 
-The references at the end of this document give examples for journal
-articles \cite{Samuel59}, conference publications \cite{langley00}, book chapters \cite{Newell81}, books \cite{DudaHart2nd}, edited volumes \cite{MachineLearningI}, 
-technical reports \cite{mitchell80}, and dissertations \cite{kearns89}. 
-
-Alphabetize references by the surnames of the first authors, with
-single author entries preceding multiple author entries. Order
-references for the same authors by year of publication, with the
-earliest first. Make sure that each reference includes all relevant
-information (e.g., page numbers).
-
-\subsection{Software and Data}
-
-We strongly encourage the publication of software and data with the
-camera-ready version of the paper whenever appropriate.  This can be
-done by including a URL in the camera-ready copy.  However, do not
-include URLs that reveal your institution or identity in your
-submission for review.  Instead, provide an anonymous URL or upload
-the material as ``Supplementary Material'' into the CMT reviewing
-system.  Note that reviewers are not required to look a this material
-when writing their review.
-
-
-% Acknowledgements should only appear in the accepted version. 
-\section*{Acknowledgments} 
- 
-\textbf{Do not} include acknowledgements in the initial version of
-the paper submitted for blind review.
-
-If a paper is accepted, the final camera-ready version can (and
-probably should) include acknowledgements. In this case, please
-place such acknowledgements in an unnumbered section at the
-end of the paper. Typically, this will include thanks to reviewers
-who gave useful comments, to colleagues who contributed to the ideas, 
-and to funding agencies and corporate sponsors that provided financial 
-support.  
-
-
-% In the unusual situation where you want a paper to appear in the
-% references without citing it in the main text, use \nocite
-\nocite{langley00}
 
 \bibliography{icml2014}
 \bibliographystyle{icml2014}
