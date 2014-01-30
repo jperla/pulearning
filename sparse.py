@@ -23,7 +23,6 @@ def is_sparse_matrix(matrix):
     else:
         raise Exception('Invalid matrix: neither sparse nor 2-tuple dense')
 
-
 def matrix_from_dense(a):
     """Accepts dense matrix.
         Returns sparse 2-tuple matrix.
