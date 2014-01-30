@@ -26,8 +26,8 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         N = X.shape[0]
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
-            logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(X[r], self.b_, self.w_)
-            probas.append(np.exp([scipy.misc.logsumexp([logPL, logPU]), logN]))
+            logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(self.w_.dot(X[r]), self.b_)
+            probas.append(np.exp([logistic.logsumexp2(logPL, logPU), logN]))
         return np.array(probas)
 
 

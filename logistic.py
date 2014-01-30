@@ -290,25 +290,20 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0):
 
     return theta
 
-def posonly_multinomial_log_probabilities(x, b, w):
-    """Accepts x (1xD) vector, and beta parameteri vectors, (c labeling constant, w_p the positive parameters and w_n the negative ones).
-        Returns 3-tuple that sums to 1 of the log odds of positive labeled, positive unlabeled, and negative.
-    """
-    xw = x.dot(w)
-    logZ = scipy.misc.logsumexp([0, b, xw])
-    logPL = -logZ
-    logPU = b - logZ
-    logN = xw - logZ
-    return (logPL, logPU, logN)
+def posonly_multinomial_log_probabilities(wx, b):
+    return clogistic.posonly_multinomial_log_probabilities(wx, b)
+
+def logsumexp2(wx, b):
+    return clogistic.logsumexp2(wx, b)
 
 def posonly_multinomial_log_probability_of_label(x, label, b, w):
-    logPL, logPU, logN = posonly_multinomial_log_probabilities(x, b, w)
-    assert np.abs(scipy.misc.logsumexp([logPL, logPU, logN])) < 0.001
+    logPL, logPU, logN = clogistic.posonly_multinomial_log_probabilities(w.dot(x), b)
+    assert np.abs(clogistic.logsumexp3(logPL, logPU, logN)) < 0.001
 
     if label == 1:
         return logPL
     elif label == 0:
-        return scipy.misc.logsumexp([logPU, logN])
+        return clogistic.logsumexp2(logPU, logN)
     else:
         raise Exception("unknown label")
 
@@ -330,21 +325,22 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
         for r in xrange(N):
             x, label = X[r], y[r]
             #print r, iteration, x, b, c, w
-            logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(x, b, w)
+            wx = w.dot(x)
+            logPpl, logPpu, logPn = clogistic.posonly_multinomial_log_probabilities(wx, b)
 
             # calculate w
             dw = 0.0
             if label == 0:
-                dw += np.exp(logPn - scipy.misc.logsumexp([logPpu, logPn]))
+                dw += np.exp(logPn - clogistic.logsumexp2(logPpu, logPn))
             dw -= np.exp(logPn)
 
             # calculate b
             db = 0.0
             if label == 0:
-                db += np.exp(logPpl - scipy.misc.logsumexp([logPpu, logPn]))
+                db += np.exp(logPpl - clogistic.logsumexp2(logPpu, logPn))
 
-                wx = w.dot(x)
-                db2 = np.exp(-1 * scipy.misc.logsumexp([b, wx]))
+                # double checking, probably no longer needed, remove TODO
+                db2 = np.exp(-1 * clogistic.logsumexp2(b, wx))
                 if (abs(db - db2) > 0.0001):
                     print db, db2
                     assert db == db2

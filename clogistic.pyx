@@ -16,6 +16,22 @@ ctypedef np.double_t DTYPE_t
 cdef inline double exp(double v): return (2.71828182845904523536 ** v)
 cdef inline double sigmoid(double v): return 1.0 / (1.0 + exp(-v))
 
+cdef inline double MAX(double v1, double v2): 
+    if v1 > v2:
+        return v1
+    else:
+        return v2
+
+from libc.math cimport exp, log
+
+cdef inline double inline_logsumexp2(double v1, double v2):
+    max = MAX(v1, v2)
+    return log(exp(v1 - max) + exp(v2 - max)) + max
+
+cdef inline double inline_logsumexp3(double v1, double v2, double v3):
+    max = MAX(MAX(v1, v2), v3)
+    return log(exp(v1 - max) + exp(v2 - max) + exp(v3 - max)) + max
+
 def wrap_fast_cython(f):
     @cython.boundscheck(False)
     @cython.wraparound(False)
@@ -25,6 +41,15 @@ def wrap_fast_cython(f):
         return f(*args, **kwargs)
     return wrapped
 
+@wrap_fast_cython
+def logsumexp2(double v1, double v2):
+    """Exposes fasterlogsumexp"""
+    return inline_logsumexp2(v1, v2)
+    
+@wrap_fast_cython
+def logsumexp3(double v1, double v2, double v3):
+    """Exposes fasterlogsumexp"""
+    return inline_logsumexp3(v1, v2, v3)
 
 @wrap_fast_cython
 def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
@@ -176,6 +201,97 @@ def sparse_modified_logistic_regression(
                 dLdw = pewx * value 
                 theta[param] += (lambda_ * dLdw)
     return b
+
+@wrap_fast_cython
+def posonly_multinomial_log_probabilities(double wx, double b):
+    """Accepts x (1xD) vector, and beta parameteri vectors, (c labeling constant, w_p the positive parameters and w_n the negative ones).
+        Returns 3-tuple that sums to 1 of the log odds of positive labeled, positive unlabeled, and negative.
+    """
+    logZ = inline_logsumexp3(0, b, wx)
+    logPL = -logZ
+    logPU = b - logZ
+    logN = wx - logZ
+    return (logPL, logPU, logN)
+
+@wrap_fast_cython
+def sparse_posonly_logistic_gradient_descent(
+                        np.ndarray[DTYPE_t, ndim=1] theta not None, 
+                        object sparseX not None, 
+                        np.ndarray[DTYPE_t, ndim=1] S not None, 
+                        int N, 
+                        int M,
+                        double eta0, 
+                        int max_iter,
+                        double b,
+                        bool fix_b,
+                       ):
+    """Accepts data X, an NxM matrix.
+        Accepts y, an Nx1 array of binary values (0 or 1)
+        Returns c and the weighted the parameter vectors.
+
+        Based on Andrew Ng's Matlab implementation: 
+            http://cs229.stanford.edu/section/matlab/logistic_grad_ascent.m
+    """
+    cdef double x, s, wx, ewx, b2ewx, p, dLdb, dLdw, pewx
+    cdef double lambda_
+    cdef long t, r, m
+    cdef long c, d
+    cdef double value
+    cdef int param
+    cdef long index
+
+    cdef np.ndarray[DTYPE_t, ndim=1] data
+    cdef np.ndarray[int, ndim=1] indices
+    cdef np.ndarray[int, ndim=1] indptr
+    cdef np.ndarray[DTYPE_t, ndim=1] w
+    
+    w = np.zeros(M)
+    data, indices, indptr = sparseX.data, sparseX.indices, sparseX.indptr
+
+    for t in range(0, max_iter):
+        eta = eta0 / (1.0 + t)
+        for r in range(N):
+            wx = 0.0
+            c = indptr[r]
+            d = indptr[r+1]
+            for index in range(c, d):
+                param = indices[index]
+                value = data[index]
+                wx += value * theta[param]
+
+            label = S[r]
+
+            #print r, iteration, x, b, c, w
+            logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(wx, b)
+
+            # calculate w
+            dw = 0.0
+            if label == 0:
+                dw += exp(logPn - inline_logsumexp2(logPpu, logPn))
+            dw -= exp(logPn)
+
+            # calculate b
+            db = 0.0
+            if label == 0:
+                db += exp(logPpl - inline_logsumexp2(logPpu, logPn))
+            db -= exp(logPpl)
+             
+            for index in range(c, d):
+                param = indices[index]
+                value = data[index]
+                w[param] += eta * (dw * value)
+            b += eta * db
+       
+        '''
+        if iteration % 20 == 0:
+            c = 1.0 / (1.0 + np.exp(b))
+            ll =  np.sum(posonly_multinomial_log_probability_of_label(X[r], y[r], b, w) for r in xrange(N))
+            print c, b, w
+            print iteration, 'll: %s' % ll
+        '''
+    return b, w
+
+
 
 
 @wrap_fast_cython
