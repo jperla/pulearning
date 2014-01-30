@@ -91,11 +91,11 @@ if __name__ == '__main__':
         posonly.fit(X, y)
         print 'posonly:', posonly.score(testX, testY)
 
-        true_sgd = sklearn.linear_model.SGDClassifier(loss='log')
+        true_sgd = sklearn.linear_model.SGDClassifier(loss='log', alpha=1e-100)
         true_sgd.fit(testX, testY)
         print 'maximum:', true_sgd.score(testX, testY)
 
-        sgd = sklearn.linear_model.SGDClassifier(loss='log')
+        sgd = sklearn.linear_model.SGDClassifier(loss='log', alpha=1e-100)
         sgd.fit(X, y)
         print 'naive sgd:', sgd.score(testX, testY)
 
