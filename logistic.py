@@ -296,18 +296,10 @@ def posonly_multinomial_log_probabilities(wx, b):
 def logsumexp2(wx, b):
     return clogistic.logsumexp2(wx, b)
 
-def posonly_multinomial_log_probability_of_label(x, label, b, w):
-    logPL, logPU, logN = clogistic.posonly_multinomial_log_probabilities(w.dot(x), b)
-    assert np.abs(clogistic.logsumexp3(logPL, logPU, logN)) < 0.001
+def posonly_multinomial_log_probability_of_label(wx, y, b):
+    return clogistic.posonly_multinomial_log_probability_of_label(wx, y, b)
 
-    if label == 1:
-        return logPL
-    elif label == 0:
-        return clogistic.logsumexp2(logPU, logN)
-    else:
-        raise Exception("unknown label")
-
-def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0, c=None):
+def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, c=None):
     """Accepts data X, an NxM matrix.
         Accepts y, an Nx1 array of binary values (0 or 1)
         Returns c and the weighted the parameter vectors.
@@ -315,16 +307,30 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
         Based on Andrew Ng's Matlab implementation: 
             http://cs229.stanford.edu/section/matlab/logistic_grad_ascent.m
     """
-    X, theta, N, M = prepend_and_vars(X)
+    if c is None:
+        fix_b = False
+        b = 0.0
+    else:
+        fix_b = True
+        b = np.log((1.0 / c) - 1.0)
 
-    w = np.zeros(M)
-    b = 0.0
-    
-    for iteration in xrange(i, max_iter):
+    X, theta, N, M = prepend_and_vars(X)
+    S = np.array(y, dtype=float)
+    return switch_array(X,
+                lambda: slow_posonly_multinomial_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b),
+                lambda: clogistic.sparse_posonly_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b=False)
+           )
+
+
+def slow_posonly_multinomial_logistic_gradient_descent(w, X, y, N, M, eta0=ETA0, max_iter=MAX_ITER, b=0.0, fix_b=False):
+    for iteration in xrange(0, max_iter):
         alpha = eta0
         for r in xrange(N):
             x, label = X[r], y[r]
+
+            #c = 1.0 / (1.0 + np.exp(b))
             #print r, iteration, x, b, c, w
+
             wx = w.dot(x)
             logPpl, logPpu, logPn = clogistic.posonly_multinomial_log_probabilities(wx, b)
 
@@ -347,15 +353,15 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
             db -= np.exp(logPpl)
              
             w += alpha * (dw * x)
-            b += alpha * db
-            c = 1.0 / (1.0 + np.exp(b))
+            if not fix_b:
+                b += alpha * db
        
         if iteration % 20 == 0:
-            ll =  np.sum(posonly_multinomial_log_probability_of_label(X[r], y[r], b, w) for r in xrange(N))
+            c = 1.0 / (1.0 + np.exp(b))
+            ll =  np.sum(posonly_multinomial_log_probability_of_label(w.dot(X[r]), y[r], b) for r in xrange(N))
             print c, b, w
             print iteration, 'll: %s' % ll
     return b, w
-
 
 def logistic_sigmoid(v, normalizer=0.0):
     """Returns 1 / (1 + n + e^(-v))"""

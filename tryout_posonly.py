@@ -4,6 +4,7 @@ from matplotlib import pyplot
 import sklearn
 import sklearn.dummy
 import numpy as np
+import scipy
 
 np.seterr(all='raise')
 
@@ -70,19 +71,23 @@ if __name__ == '__main__':
         y = np.hstack([np.array([1] * positive_labeled.shape[0]),
                        np.array([0] * unlabeled.shape[0]),])
         X, y = sklearn.utils.shuffle(X, y)
-        scaler = sklearn.preprocessing.Scaler()
+        scaler = sklearn.preprocessing.StandardScaler()
         scaler.fit(X)
         X = scaler.transform(X)
+        X = scipy.sparse.csr_matrix(X)
 
         testX = np.vstack([positive, negative])
         testY = np.hstack([np.array([1] * positive.shape[0]),
                            np.array([0] * negative.shape[0]),])
         testX, testY = sklearn.utils.shuffle(testX, testY)
         testX = scaler.transform(testX)
+        testX = scipy.sparse.csr_matrix(testX)
         
         print 'c:', c
 
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=50, c=c, eta0=0.1)
+        n_iter = 1000
+
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=n_iter, eta0=0.1)
         posonly.fit(X, y)
         print 'posonly:', posonly.score(testX, testY)
 
@@ -96,9 +101,9 @@ if __name__ == '__main__':
 
         dumb = sklearn.dummy.DummyClassifier(strategy='most_frequent',random_state=0)
         dumb.fit(X, y)
-        print dumb.score(testX, testY)
+        print 'most frequent:', dumb.score(testX, testY)
 
         dumb = sklearn.dummy.DummyClassifier(strategy='stratified',random_state=0)
         dumb.fit(X, y)
-        print dumb.score(testX, testY)
+        print 'stratified:',dumb.score(testX, testY)
 

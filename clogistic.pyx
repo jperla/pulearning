@@ -1,5 +1,6 @@
 from __future__ import division
 
+import logging
 import functools
 
 import numpy as np
@@ -214,6 +215,18 @@ def posonly_multinomial_log_probabilities(double wx, double b):
     return (logPL, logPU, logN)
 
 @wrap_fast_cython
+def posonly_multinomial_log_probability_of_label(wx, label, b):
+    logPL, logPU, logN = posonly_multinomial_log_probabilities(wx, b)
+    assert abs(logsumexp3(logPL, logPU, logN)) < 1e-7
+
+    if label == 1:
+        return logPL
+    elif label == 0:
+        return logsumexp2(logPU, logN)
+    else:
+        raise Exception("unknown label")
+
+@wrap_fast_cython
 def sparse_posonly_logistic_gradient_descent(
                         np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         object sparseX not None, 
@@ -234,23 +247,24 @@ def sparse_posonly_logistic_gradient_descent(
     """
     cdef double x, s, wx, ewx, b2ewx, p, dLdb, dLdw, pewx
     cdef double lambda_
+    cdef double calculated_c
     cdef long t, r, m
     cdef long c, d
     cdef double value
     cdef int param
     cdef long index
+    cdef double ll
 
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef np.ndarray[int, ndim=1] indices
     cdef np.ndarray[int, ndim=1] indptr
-    cdef np.ndarray[DTYPE_t, ndim=1] w
     
-    w = np.zeros(M)
     data, indices, indptr = sparseX.data, sparseX.indices, sparseX.indptr
 
     for t in range(0, max_iter):
-        eta = eta0 / (1.0 + t)
+        eta = eta0
         for r in range(N):
+            # calculate wx
             wx = 0.0
             c = indptr[r]
             d = indptr[r+1]
@@ -261,35 +275,46 @@ def sparse_posonly_logistic_gradient_descent(
 
             label = S[r]
 
-            #print r, iteration, x, b, c, w
+            #print r, t, x, b, c, theta
             logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(wx, b)
 
-            # calculate w
+            # calculate dw
             dw = 0.0
             if label == 0:
                 dw += exp(logPn - inline_logsumexp2(logPpu, logPn))
             dw -= exp(logPn)
 
-            # calculate b
+            # calculate db
             db = 0.0
             if label == 0:
                 db += exp(logPpl - inline_logsumexp2(logPpu, logPn))
             db -= exp(logPpl)
              
+            # update dw
             for index in range(c, d):
                 param = indices[index]
                 value = data[index]
-                w[param] += eta * (dw * value)
-            b += eta * db
+                theta[param] += eta * (dw * value)
+            # update b
+            if not fix_b:
+                b += eta * db
        
-        '''
-        if iteration % 20 == 0:
-            c = 1.0 / (1.0 + np.exp(b))
-            ll =  np.sum(posonly_multinomial_log_probability_of_label(X[r], y[r], b, w) for r in xrange(N))
-            print c, b, w
-            print iteration, 'll: %s' % ll
-        '''
-    return b, w
+        if t % 20 == 0:
+            ll = 0.0
+            for r in range(N):
+                # calculate wx
+                wx = 0.0
+                c = indptr[r]
+                d = indptr[r+1]
+                for index in range(c, d):
+                    param = indices[index]
+                    value = data[index]
+                    wx += value * theta[param]
+                ll +=  posonly_multinomial_log_probability_of_label(wx, S[r], b)
+            calculated_c = 1.0 / (1.0 + exp(b))
+            logging.debug(calculated_c, b, theta)
+            logging.debug(t, 'll: %s' % ll)
+    return b, theta
 
 
 

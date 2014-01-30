@@ -8,7 +8,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
     """Posonly logistic regression.
     """
 
-    def __init__(self, eta0=0.1, n_iter=5, c=0.5):
+    def __init__(self, eta0=0.1, n_iter=5, c=None):
         self.eta0 = eta0
         self.n_iter = n_iter
         self.c = c
@@ -23,6 +23,9 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
 
     def predict_proba(self, X):
         probas = []
+        # TODO: speed up classification by working with sparse matrices
+        if isinstance(X, scipy.sparse.csr.csr_matrix):
+            X = np.array(X.todense())
         N = X.shape[0]
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
