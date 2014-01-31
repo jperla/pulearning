@@ -48,10 +48,20 @@ if __name__ == '__main__':
     
     cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05, 0.3, 0.4, 0.7, 0.8, 0.02, 0.07, 0.92, 0.95, 0.97, 0.99]
     cs = [(0.01 * i) for i in xrange(1, 10)]
-    cs.extend([(0.001 * i) for i in xrange(1, 10)])
     cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
+
+    '''
+    cs = []
+    cs.extend([(0.001 * i) for i in xrange(1, 50)])
+    cs.extend([(0.001 * i) for i in xrange(1, 50)])
+    '''
     for c in cs:
         positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
+        
+        # skip data with no positive labels
+        if positive_labeled.shape[0] < 3:
+            continue
+
         X = np.vstack([positive_labeled, unlabeled])
         y = np.hstack([np.array([1] * positive_labeled.shape[0]),
                        np.array([0] * unlabeled.shape[0]),])
