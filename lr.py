@@ -32,7 +32,16 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
             logPL, logPU, logN, _ = logistic.posonly_multinomial_log_probabilities(self.w_.dot(X[r]), self.b_, self.q_)
-            probas.append(np.exp([logN, logistic.logsumexp2(logPL, logPU)]))
+            P = np.exp(logistic.logsumexp2(logPL, logPU))
+            N = 1 - P
+            try:
+                N2 = np.exp(logN)
+            except:
+                pass
+            else:
+                assert abs(N2 - N) < 0.001
+            assert abs(1.0 - (P + N)) < 0.001
+            probas.append([N, P])
         return np.array(probas)
 
     def final_c(self):
