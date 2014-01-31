@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import scipy
 from matplotlib import pyplot
 import sklearn
 import numpy as np
@@ -31,11 +32,16 @@ if __name__ == '__main__':
     validation_fractions = [0.01, 0.05, 0.10, 0.30, 0.50, 1.0]
     table = []
 
-    n_pos = 500
+    if 'FULL_GRAPH' in locals() and FULL_GRAPH:
+        speed_multiple = 1
+    else:
+        speed_multiple = 5
+
+    n_pos = 500 / speed_multiple
     mean_pos = [2, 2]
     cov_pos = [[1, 1], [1, 4]]
 
-    n_neg = 1000
+    n_neg = 1000 / speed_multiple
     mean_neg = [-2, -3]
     cov_neg = [[4, -1], [-1, 4]]
 
@@ -60,14 +66,18 @@ if __name__ == '__main__':
         y = np.hstack([np.array([1] * pos_sample.shape[0]),
                         np.array([0] * unlabeled.shape[0]),])
         X, y = sklearn.utils.shuffle(X, y)
-        scaler = sklearn.preprocessing.Scaler()
+        scaler = sklearn.preprocessing.StandardScaler()
         scaler.fit(X)
         X = scaler.transform(X)
+        X = scipy.sparse.csr_matrix(X)
 
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=1000, c=c)
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=1000, eta0=0.01, c=None)
         posonly.fit(X, y)
+        print 'posonly c:', posonly.final_c()
 
 
+        pos_sample = scipy.sparse.csr_matrix(pos_sample)
+        unlabeled = scipy.sparse.csr_matrix(unlabeled)
 
         testX = np.vstack([pos, neg])
         testy = np.hstack([np.array([1] * pos.shape[0]),
@@ -97,9 +107,7 @@ if __name__ == '__main__':
         ax.scatter(pos[:,0], pos[:,1], s=6, c='b', marker='+')
         ax.scatter(neg[:,0], neg[:,1], s=6, c='r', marker='o', lw=0)
 
-        ax.legend(, ['r', , loc=3)
-
-        delta = 0.01
+        delta = 0.01 * speed_multiple
         x, y = np.arange(-8, 8, delta), np.arange(-10, 10, delta)
         X, Y = np.meshgrid(x, y)
 
@@ -114,24 +122,37 @@ if __name__ == '__main__':
         # plot the LR on the true labels
         labels = logistic.label_data(data, thetaTrue, normalizer=0.0, binarize=False)
         labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#0000FF')
+        CS = pyplot.contour(X, Y, labels, [0.50,], colors='#0000FF')
+        CS.collections[0].set_label('LR True Labels')
         
         labels = logistic.label_data(data, theta, normalizer=0.0, binarize=False)
         labels.shape = shape
         CS = pyplot.contour(X, Y, labels, [0.10,], colors='#AAAAFF')
+        CS.collections[0].set_label('LR Pos-only Labels')
 
-        labels = posonly.predict_proba(scaled_data)[:,0]
+        labels = posonly.predict_proba(scaled_data)[:,1]
         labels.shape = shape
-        CS = pyplot.contour(X, Y, labels, [0.10,], colors='#00FF00')
-        #pyplot.clabel(CS, inline=1, fontsize=10)
-
+        CS = pyplot.contour(X, Y, labels, [0.50,], colors='#00FF00')
+        CS.collections[0].set_label('POLR Pos-only Labels')
 
         print 'b: ', b
         print 'c ~ ', 1.0 / (1.0 + b*b)
         labels = logistic.label_data(data, thetaM, normalizer=(b*b), binarize=False)
         labels.shape = shape
         CS = pyplot.contour(X, Y, labels, [0.10,], colors='r')
-        #pyplot.clabel(CS, inline=1, fontsize=15)
+        CS.collections[0].set_label('CLR Pos-only Labels')
 
         pyplot.title('Logistic regression on synthetic data')
-        pyplot.show()
+
+        handles, labels = ax.get_legend_handles_labels()
+        ax.legend(handles, labels, loc=3)
+
+        name = 'syntheticlr'
+        fig.savefig('pdf/%s.png' % name)
+        if speed_multiple > 1:
+            fig.savefig('pdf/%s-fast.png' % name)
+        else:
+            fig.savefig('pdf/%s-full.png' % name)
+
+        if 'SUPPRESS_PLOT' not in locals() or not SUPPRESS_PLOT:
+            pyplot.show()

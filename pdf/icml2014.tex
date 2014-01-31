@@ -83,7 +83,17 @@ Many datasets do not have full training data that includes a large number of pos
 
 \subsection{The Problem}
 
-The only input are $N$ feature vectors with a subset of them having the label $1$ and the rest unlabeled.  
+\begin{figure}[ht!]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{theproblem}}
+\caption{An illustration of the two datasets and the two proportions $c$ and $p(y=1)$ inherent in estimating the label probabilities of a positive-only dataaset. }
+\label{changingodds}
+\end{center}
+\vskip -0.2in
+\end{figure}
+
+The only input are $N$ feature vectors with a subset of them having the label $\mathbf{1}$ and the rest unlabeled.  
 
 We do not assume that we know the proportion of positive data in the training set ($p(y=1)$) nor do we assume or take as input the probability of labeling a positive instance $c$.  We learn both jointly with all of the models presented in this paper.  We do observe that, in expectation, the proportion of labeled examples ($p(\ell=1)$) in the training set is near the minimum possible $c$ and the minimum possible $p(y=1)$. If $c$ or $p(y=1)$ were much lower than $p(\ell=1)$, then the likelihood of the data would be very low.  We use this fact in Positive-Only Logistic Regression.
 
@@ -172,8 +182,8 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 \begin{figure*}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=120mm]{rocswappedproteindata.png}}
-\caption{We re-run the algorithms from Figure 1 on the same dataset, but swapping the unlabeled positive examples for the labeled positive examples. Our new dataset contains 4558 negative examples, 2453 unlabeled positive examples, and only 348 labeled positive examples.  Ceiling LR still performs significantly better than baselines and previous work, although not as well as knowing the full dataset.  These results are impressive because less than 5\% of the examples are labeled, all of which are positive labels. The weighted SVM and other SVMs may not be optimally calibrated.}
+\centerline{\includegraphics[width=120mm]{rocswappedproteindata}}
+\caption{We re-run the algorithms from Figure 1 on the same dataset, but swapping the unlabeled positive examples for the labeled positive examples. Our new dataset contains 4558 negative examples, 2453 unlabeled positive examples, and only 348 labeled positive examples.  POLR and Ceiling LR still performs significantly better than baselines and previous work, although not as well as knowing the full label set.  These results are impressive because less than 5\% of the examples are labeled, all of which are positive labels.}
 \label{rocswapped}
 \end{center}
 \vskip -0.2in
@@ -183,7 +193,7 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=120mm]{simulated.png}}
-\caption{Simulating two gaussians as above, we can compare logistic regression on the true labels as compared to logistic regression, and POLR on a positive-only dataset with various values of $c$.}
+\caption{Simulating two gaussians as above, we can compare logistic regression on the true labels as compared to logistic regression, and POLR on a positive-only dataset with various values of $c$. In this chart, we plot the accuracy on a separate test set generated with the same parameters but varying $c$ from 1\% to 100\%.  Positive-Only Logistic Regression performs as well as knowing the full training label set even when losing 90+\% of the training labels. Baseline methods require a majority of the label data.}
 \label{synthetic}
 \end{center}
 \vskip -0.2in
@@ -219,6 +229,26 @@ Thus, $c$ is the constant fraction of positive samples which are labeled. The te
 
 $$q = \frac{1}{1 - minimumC} - 1$$
 
+\begin{figure}[ht!]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{changingodds.png}}
+\caption{The $w$ parameter update changes the odds of the positive and negatives overall, but does not change $c$ the probability of being labeled. Updates on this parameter change the likelihood of the observed labels while also changing the overall probability of positive labels in the same direction. More positive or negative data will push it in the appropriate direction. $n_j = p(k=N|x_j,w)$ and $p_j = 1-n_j$. The likelihood is maximized when $c \cdot p_{j}$ is maximal for labeled points and minimized for unlabeled points. }
+\label{changingodds}
+\end{center}
+\vskip -0.2in
+\end{figure}
+
+\begin{figure}[ht!]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{changingc.png}}
+\caption{The $b$ parameter update changes $c$ the probability of being labeled, but does not affect the proportion of positive to negative at each example. Updates to $b$ increase the likelihood of the observed data only without affecting the proportion of positive vs negative data overall. It is a weighted average of the observed label proportions.  It reaches a stable point when $\sum_{j}{p(\ell_j=1|x_j,w)}$ is the true proportion of labeled data.}
+\label{changingc}
+\end{center}
+\vskip -0.2in
+\end{figure}
+
 \subsection{Learning $\beta = b, w$ from $D$}
 
 Assuming we have independently drawn data $D$, the conditional log likelihood, where $\beta = b, w$ is \cite{carpenter08}
@@ -245,16 +275,6 @@ We calculate the gradients (derivations in the Supplementary Materials) in order
     \big)
 \end{eqnarray*}
 
-\begin{figure}[ht!]
-\vskip 0.2in
-\begin{center}
-\centerline{\includegraphics[width=\columnwidth]{changingodds.png}}
-\caption{The $w$ parameter update changes the odds of the positive and negatives overall, but does not change $c$ the probability of being labeled. Updates on this parameter change the likelihood of the observed labels while also changing the overall probability of positive labels in the same direction. More positive or negative data will push it in the appropriate direction. $n_j = p(k=N|x_j,w)$ and $p_j = 1-n_j$. The likelihood is maximized when $c \cdot p_{j}$ is maximal for labeled points and minimized for unlabeled points. }
-\label{changingodds}
-\end{center}
-\vskip -0.2in
-\end{figure}
-
 \begin{eqnarray*}
 \nabla_{b}{Err_R (x_j, \beta)}  = \Big( \frac{q}{Z} - p(k=P_L | x_j,\beta) \Big) \cdot \\
 	\left( 
@@ -262,19 +282,9 @@ We calculate the gradients (derivations in the Supplementary Materials) in order
 	  \right)
 \end{eqnarray*}
 
-\begin{figure}[ht!]
-\vskip 0.2in
-\begin{center}
-\centerline{\includegraphics[width=\columnwidth]{changingc.png}}
-\caption{The $b$ parameter update changes $c$ the probability of being labeled, but does not affect the proportion of positive to negative at each example. Updates to $b$ increase the likelihood of the observed data only without affecting the proportion of positive vs negative data overall. It is a weighted average of the observed label proportions.  It reaches a stable point when $\sum_{j}{p(\ell_j=1|x_j,w)}$ is the true proportion of labeled data.}
-\label{changingc}
-\end{center}
-\vskip -0.2in
-\end{figure}
+As in Ceiling LR, we do not regularize the weights in our implementation.
 
-As in Ceiling LR, e do not regularize the weights in our implementation.
-
-\subsection(Convexity)
+\subsection{Convexity}
 
 Positive-Only Logistic Regression's error function is convex for the same reason that standard Logistic Regression is convex. The error function is the sum of the log of a number of individual likelihoods for each training sample. Each of these is an affine function term plus a log of the sum of an exponential of an affine function. The log of the sum of an exponential is convex, as is the affine function.  Therefore, all of them summed together are also convex.  If we were to add regularization, then it would be strictly convex.  Strict convexity is less important for stochastic gradient training we do here because in SGD the gradient is not computed exactly anyway and therefore will likely always point somewhere.
 

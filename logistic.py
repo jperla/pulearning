@@ -247,7 +247,7 @@ def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, alpha=0, 
     elif isinstance(X, np.ndarray):
         assert alpha == 0, 'non-sparse does not support regularization'
         assert learning_rate == 'default', 'non-sparse does not support different learning rates'
-        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter)
+        clogistic.logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
     else:
         raise Exception("Unknown array datatype")
 

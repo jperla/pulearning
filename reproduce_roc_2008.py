@@ -16,8 +16,16 @@ from fastgridsearch import FastGridSearchCV
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5, 2**-4, 2**-3,]
 #C_VALUES = [2**-8, 2**-7, 2**-6, 2**-5,]
 C_VALUES = [2**-8, 2**-7, 2**-6,]
-USE_L2_REGULARIZED_LR = False
-USE_SVMS = False
+
+speed_multiple = 1
+if 'FULL_GRAPH' in locals() and FULL_GRAPH:
+    USE_L2_REGULARIZED_LR = True
+    USE_SVMS = True
+else:
+    speed_multiple = 10
+    USE_L2_REGULARIZED_LR = False
+    USE_SVMS = False
+
 USE_SGD_SVM = True
 USE_WEIGHTED_SVM = (USE_SVMS and True)
 
@@ -134,15 +142,18 @@ if __name__=='__main__':
 
     pos, neg, unlabeled_pos = read_swissprot_data()
     # switch cases to use a smaller labeled dataset
+    cases_switched = False
     if 'SWITCH_CASES' in locals() and SWITCH_CASES:
+        cases_switched = True
         logging.warning('Switching positive and negative datasets!')
         unlabeled_pos, pos = pos, unlabeled_pos 
 
     true_c = float(pos.shape[0]) / (pos.shape[0] + unlabeled_pos.shape[0])
 
-    truncate = lambda m: m[:int(m.shape[0] / 30),:]
+    truncate = lambda m: m[:int(m.shape[0] / speed_multiple),:]
     # Use less data so that we can move faster, comment this out to use full dataset
-    #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
+    if speed_multiple > 1:
+        pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
 
     num_folds = 10
     kfold_pos = list(sklearn.cross_validation.KFold(pos.shape[0], n_folds=num_folds, shuffle=True, random_state=0))
@@ -318,7 +329,7 @@ if __name__=='__main__':
 
         # Plot ROC curve
         import pylab as pl
-        pl.clf()
+        fig = pl.figure()
 
         sorted_roc_curves = list(reversed(sorted(roc_curves, key=lambda c: c.roc_auc)))
         for c in sorted_roc_curves:
@@ -337,6 +348,15 @@ if __name__=='__main__':
         title = 'ROC for Inverted SwissProt' if 'SWITCH_CASES' in locals() and not SWITCH_CASES else 'ROC for SwissProt'
         pl.title(title)
         pl.legend(loc="lower right")
-        pl.show()
+
+        name = 'rocswappedproteindata' if cases_switched else 'rocproteindata'
+        fig.savefig('pdf/%s.png' % name)
+        if speed_multiple > 1:
+            fig.savefig('pdf/%s-fast.png' % name)
+        else:
+            fig.savefig('pdf/%s-full.png' % name)
+
+        if 'SUPPRESS_PLOT' not in locals() or not SUPPRESS_PLOT:
+            pl.show()
 
 

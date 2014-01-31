@@ -32,11 +32,16 @@ if __name__ == '__main__':
     cs = np.linspace(0.05, 1, 20)
     table = []
 
-    n_pos = 500
+    if 'FULL_GRAPH' in locals() and FULL_GRAPH:
+        speed_multiple = 1
+    else:
+        speed_multiple = 10
+
+    n_pos = 500 / speed_multiple
     mean_pos = [2, 2]
     cov_pos = [[1, 1], [1, 4]]
 
-    n_neg = 1000
+    n_neg = 1000 / speed_multiple
     mean_neg = [-2, -3]
     cov_neg = [[4, -1], [-1, 4]]
 
@@ -46,15 +51,19 @@ if __name__ == '__main__':
     posonly_points = []
     naive_points = []
     
-    cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05, 0.3, 0.4, 0.7, 0.8, 0.02, 0.07, 0.92, 0.95, 0.97, 0.99]
-    cs = [(0.01 * i) for i in xrange(1, 100)]
-    cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
+    if speed_multiple > 1:
+        cs = [(0.1 * i) for i in xrange(1, 10)]
+    else:
+        cs = [(0.01 * i) for i in xrange(1, 100)]
+        cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
+        cs.extend([(0.001 * i) for i in xrange(1, 10)])
 
-    '''
-    cs = []
-    cs.extend([(0.001 * i) for i in xrange(1, 50)])
-    cs.extend([(0.001 * i) for i in xrange(1, 50)])
-    '''
+        '''
+        cs = []
+        cs.extend([(0.001 * i) for i in xrange(1, 50)])
+        cs.extend([(0.001 * i) for i in xrange(1, 50)])
+        '''
+
     for c in cs:
         positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
         
@@ -134,17 +143,24 @@ if __name__ == '__main__':
 
     fig = pyplot.figure()
     ax = fig.add_subplot(111)
-    ax.plot(posonly_points[:,0], posonly_points[:,1], 'bo--', label="POLR pos-only labels")
+    ax.plot(posonly_points[:,0], posonly_points[:,1], 'b+--', label="POLR pos-only labels")
     ax.plot(optimal_points[:,0], optimal_points[:,1], 'go-', label="LR true labels")
-    ax.plot(naive_points[:,0], naive_points[:,1], 'ro-', label="LR pos-only labels")
+    ax.plot(naive_points[:,0], naive_points[:,1], 'rx-', label="LR pos-only labels")
 
     ax.set_title('Comparing logistic regression on synthetic data')
     ax.set_xlabel('C')
     ax.set_ylabel('Test Accuracy')
 
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels, loc=3)
+    ax.legend(handles, labels, loc=4)
 
-    fig.savefig('pdf/simulated.png')
-    fig.show()
+    name = 'simulated'
+    fig.savefig('pdf/%s.png' % name)
+    if speed_multiple > 1:
+        fig.savefig('pdf/%s-fast.png' % name)
+    else:
+        fig.savefig('pdf/%s-full.png' % name)
+
+    if 'SUPPRESS_PLOT' not in locals() or not SUPPRESS_PLOT:
+        fig.show()
 
