@@ -193,23 +193,25 @@ $$p(k=3 | x, w_1, w_2, w_3) =  \frac{e^{w_3 \cdot x}}{Z_N}$$
 
 $Z_N$ is the normalization factor, the sum of the 3 numerators, and $\sum_{k=1,2,3}{p(k_j=k|x_j, w_1, w_2, w_3)} = 1$.
 
-POLR models the positive-only dataset directly with a 3-class multinomial regression with the following classes: one class is positive and labeled ($P_L$), one is positive and unlabeled ($P_U$), and the last is negative and unlabeled (N).  There are no negative labeled samples.  We use the standard multinomial regression probabilities, but we share the weights $w_p$ between the positive-labeled ($P_L$) and positive-unlabeled ($P_U$) classes. Finally, we include a bias term $b$ which biases the constant fraction of the positive samples which are labeled.  $Z_N$ is the normalization factor, the sum of the 3 numerators.
+POLR models the positive-only dataset directly with a 3-class multinomial regression with the following classes: one class is positive and labeled ($P_L$), one is positive and unlabeled ($P_U$), and the last is negative and unlabeled (N).  There are no negative labeled samples.  We use the standard multinomial regression probabilities, but we share the weights $w_p$ between the positive-labeled ($P_L$) and positive-unlabeled ($P_U$) classes. Finally, we include a bias variable $b$ and a constant $q$ which bias the constant fraction of the positive samples which are labeled to be between $minimumC$ and 1.  We calculate $minimumC$ empirically as the fraction of the training set which are labeled examples.  $Z_N$ is the normalization factor, the sum of the 3 numerators.
 
-$$p(k=P_L | x, w_p, w_n) =  \frac{e^{\mathbf{w_p} \cdot x}}{Z_N}$$
-$$p(k=P_U | x, w_p, w_n) =  \frac{e^{\mathbf{w_p} \cdot x - \mathbf{b}}}{Z_N}$$
+$$p(k=P_L | x, w_p, w_n) =  \frac{e^{\mathbf{w_p} \cdot x - \mathbf{b}} + \mathbf{q \cdot e^{w_p \cdot x}}}{Z_N}$$
+$$p(k=P_U | x, w_p, w_n) =  \frac{e^{\mathbf{w_p} \cdot x}}{Z_N}$$
 $$p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_N}$$
 
 This simplifies (proof in the Supplementary Materials) to
 
-$$ p(k=P_L | x, w) = \frac{1}{1 + e^{-b} + e^{w \cdot x}}$$
-$$ p(k=P_U | x, w) =  \frac{e^{-b}}{1 + e^{-b} + e^{w \cdot x}}$$
+$$ p(k=P_L | x, w) = \frac{e^{-b} + q}{1 + e^{-b} + e^{w \cdot x}}$$
+$$ p(k=P_U | x, w) =  \frac{1}{1 + e^{-b} + e^{w \cdot x}}$$
 $$ p(k=N | x, w) = \frac{e^{w \cdot x}}{1 + e^{-b} + e^{w \cdot x}}$$
 
 Where $w = w_n - w_p$. Notice that, $\forall x$,
 
-$$\frac{p(k=P_L | x, w)}{p(k=P_L | x, w) + p(k=P_U | x, w)} = \frac{1}{1 + e^{-b}} = c$$
+$$\frac{p(k=P_L | x, w)}{p(k=P_L | x, w) + p(k=P_U | x, w)} = \frac{1}{1 + q + e^{-b}} = c$$
 
-Thus, $c$ is the constant fraction of positive samples which are labeled. $c$ is always between 0 and 1.
+Thus, $c$ is the constant fraction of positive samples which are labeled. The term $q$ ensures that $c$ stays between $minimumC$ and $1$, instead of  between $0$ and $1$.
+
+$$q = \frac{1}{1 - minimumC} - 1$$
 
 \subsection{Learning $\beta = b, w$ from $D$}
 
@@ -247,10 +249,12 @@ We calculate the gradients (derivations in the Supplementary Materials) in order
 \vskip -0.2in
 \end{figure}
 
-$$\nabla_{b}{Err_R (x_j, \beta)}  = I(\ell_j=0) \cdot
-		\frac{p(\ell_j=1)}{p(\ell_j=0)}
-		-
-		 p(\ell_j=1)$$
+\begin{eqnarray*}
+\nabla_{b}{Err_R (x_j, \beta)}  = \Big( \frac{q}{Z} - p(k=P_L | x_j,\beta) \Big) \cdot \\
+	\left( 
+		\frac{I(\ell_j=1)}{p(k=P_L | x_j,\beta)} + 1 
+	  \right)
+\end{eqnarray*}
 
 \begin{figure}[ht!]
 \vskip 0.2in
@@ -292,25 +296,35 @@ Ideally, we would like to be able to relax the assumption that $p(\ell_j|x)=c$ f
 \section{Appendix A: Derivations of Stochastic Updates for Positive-Only Logistic Regression}
 
 \subsection{Positive-Only Logistic Regression Model}
+
+Let $q = \frac{1}{1 - minimumC} - 1$.
+
 $$
-p(k=P_L | x, w_p, w_n) =  \frac{e^{w_p \cdot x}}{Z_N} = \frac{e^{w_p \cdot x}}{e^{w_p \cdot x} + \cdot e^{w_p \cdot x - b} + e^{w_n \cdot x}} = \frac{e^{w_p \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+p(k=P_L | x, w_p, w_n) =  \frac{e^{w_p \cdot x - b} + e^{w_p \cdot x + \log{q}}}{Z_{POLR}} 
+				     = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
 $$
 $$
-p(k=P_U | x, w_p, w_n) =  \frac{e^{w_p \cdot x - b}}{Z_N} = \frac{e^{w_p \cdot x - b}}{e^{w_p \cdot x} + e^{w_p \cdot x - b} + e^{w_n \cdot x}} = \frac{e^{w_p \cdot x - b}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+p(k=P_U | x, w_p, w_n) =  \frac{e^{w_p \cdot x}}{Z_{POLR}} 
+				     = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
 $$
 $$
-p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_N} = \frac{e^{w_n \cdot x}}{e^{w_p \cdot x} + e^{w_p \cdot x - b} + e^{w_n \cdot x}} = \frac{e^{w_n \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}}
+p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_{POLR}} 
+				 = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
 $$
 And then dividing every term by $w_p$ and setting $w = w_n - w_p$.
 $$
-p(k=P_L | x, w_p, w_n) = \frac{e^{w_p \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{1}{1 + e^{-b} + e^{w \cdot x}}
+p(k=P_L | x, w_p, w_n) = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+ 				     = \frac{e^{-b} + q}{1 + q + e^{-b} + e^{w \cdot x}}
 $$
 $$
-p(k=P_U | x, w_p, w_n) = \frac{e^{w_p \cdot x - b}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{e^{-b}}{1 + e^{-b} + e^{w \cdot x}}
+p(k=P_U | x, w_p, w_n) = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+				     = \frac{1}{1 + q + e^{-b} + e^{w \cdot x}}
 $$
 $$
-p(k=N | x, w_p, w_n) = \frac{e^{w_n \cdot x}}{(1 + e^{b}) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} = \frac{e^{w \cdot x}}{1 + e^{-b} + e^{w \cdot x}}
+p(k=N | x, w_p, w_n) = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+				= \frac{e^{w \cdot x}}{1 + q + e^{-b} + e^{w \cdot x}}
 $$
+
 
 So we only need to learn the vector $w$.
 
@@ -324,61 +338,53 @@ $$
 \nabla_{w_i}{Err_R (D, \beta)} = \frac{\partial}{\partial w_i} \log{p(D|\beta)} =  \sum_{j=1...n}{\frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)}}
 $$
 
-so for each $i,j$,
+so for each $i,j$, ($Z = 1 + q + e^{-b} + e^{w \cdot x}$),
 
 
 \begin{eqnarray*}
 \nabla_{w_{i,j}}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)} \\
  &=& \frac{\partial}{\partial w_i}
 		\log{\Bigg(
-			I(\ell_j=1) \cdot \left( \frac{1}{1 + e^{-b} + e^{w \cdot x}} \right) + 
-			I(\ell_j=0) \cdot \left(\frac{e^{-b}}{1 + e^{-b} + e^{w \cdot x}} + \frac{e^{w \cdot x}}{1 + e^{-b} + e^{w \cdot x}} \right)
+			I(\ell_j=1) \cdot \left( \frac{e^{-b} + q}{Z} \right) + 
+			I(\ell_j=0) \cdot \left(\frac{1}{Z} + \frac{e^{w \cdot x}}{Z} \right)
 		\Bigg)} \\
  &=& \frac{\partial}{\partial w_i}
 		\log{\Bigg(
 		    \frac{
-			I(\ell_j=1) + 
-			I(\ell_j=0) \cdot \left( e^{-b} + e^{w \cdot x} \right)
-		     }{1 + e^{-b} + e^{w \cdot x}}
+			I(\ell_j=1) \cdot \left( e^{-b} + q \right) + 
+			I(\ell_j=0) \cdot \left(1 + e^{w \cdot x} \right)
+		     }{Z}
 		\Bigg)} \\
  &=& \frac{\partial}{\partial w_i}
 		\log{\bigg(
-			I(\ell_j=1) + 
-			I(\ell_j=0) \cdot \left( e^{-b} + e^{w \cdot x} \right)
+			I(\ell_j=1) \cdot \left( e^{-b} + q \right) +
+			I(\ell_j=0) \cdot \left( 1 + e^{w \cdot x} \right)
 		\bigg)}
 		- \frac{\partial}{\partial w_i}
-		 \log{\bigg(
-			1 + e^{-b} + e^{w \cdot x}
-		\bigg)} \\
+		 \log{Z} \\
  &=& I(\ell_j=1) \cdot \frac{\partial}{\partial w_i}
-		\log{(1)} +
+		\log{(e^{-b} + q)} +
     I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
-		\log{ \left( e^{-b} + e^{w \cdot x} \right) }
+		\log{ \left( 1 + e^{w \cdot x} \right) }
 		- \frac{\partial}{\partial w_i}
-		 \log{\bigg(
-			1 + e^{-b} + e^{w \cdot x}
-		\bigg)} \\
+		 \log{Z} \\
  &=& I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
-		\log{  \left( e^{-b} + e^{w \cdot x} \right) }
+		\log{  \left( 1 + e^{w \cdot x} \right) }
 		- \frac{\partial}{\partial w_i}
-		 \log{\bigg(
-			1 + e^{-b} + e^{w \cdot x}
-		\bigg)} \\
+		 \log{Z} \\
  &=& I(\ell_j=0) \cdot 
  		\frac{
 			e^{w \cdot x}
 		}{
-			e^{-b} + e^{w \cdot x}
+			1 + e^{w \cdot x}
 		} \cdot x_{j,i}
 		- \frac{\partial}{\partial w_i}
-		 \log{\Big(
-			1 + e^{-b} + e^{w \cdot x}
-		\Big)} \\
+		 \log{Z} \\
  &=& I(\ell_j=0) \cdot 
  		\frac{
 			e^{w \cdot x}
 		}{
-			e^{-b} + e^{w \cdot x}
+			1 + e^{w \cdot x}
 		} \cdot x_{j,i}
 		- \frac{e^{w \cdot x}}{
 			1 + e^{-b} + e^{w \cdot x}
@@ -395,22 +401,35 @@ Similarly for the parameter $b$ in $\beta$, for each $j$,
 
 \begin{eqnarray*}
 \nabla_{b}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial c}\log{p(\ell_j | x_j, \beta)} \\
- &=& I(\ell_j=0) \cdot \frac{\partial}{\partial b}
-		\log{  \left( e^{-b} + e^{w \cdot x} \right) }
+&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{(e^{-b} + q)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial b}
+		\log{ \left( 1 + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial b}
+		 \log{Z} \\
+&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{(e^{-b} + q)} -
+		\frac{\partial}{\partial b}
+		 \log{Z} \\
+ &=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{  \left( e^{-b} + q \right) }
 		- \frac{\partial}{\partial b}
 		 \log{\bigg(
-			1 + e^{-b} + e^{w \cdot x}
+			1 + q + e^{-b} + e^{w \cdot x}
 		\bigg)} \\
- &=& I(\ell_j=0) \cdot
-		\frac{1}{e^{-b} + e^{w \cdot x}}
-		-
-		 \frac{1}{
-			1 + e^{-b} + e^{w \cdot x}
+ &=& - I(\ell_j=1) \cdot
+		\frac{e^{-b}}{e^{-b} + q}
+		+
+		 \frac{e^{-b}}{
+			1 + q + e^{-b} + e^{w \cdot x}
 		} \\
- &=& I(\ell_j=0) \cdot
-		\frac{p(\ell_j=1 | x_j,\beta)}{p(\ell_j=0 | x_j,\beta)}
-		-
-		 p(\ell_j=1 | x_j,\beta)
+ &=& - I(\ell_j=1) \cdot
+		\frac{ \left( p(k=P_L | x_j,\beta) - \frac{q}{Z} \right) }{p(k=P_L | x_j,\beta)}
+		+
+		 p(k=P_L | x_j,\beta) - \frac{q}{Z} \\
+ &=& \Big( p(k=P_L | x_j,\beta) - \frac{q}{Z} \Big) \cdot \left( 
+		1 - \frac{ I(\ell_j=1)}{p(k=P_L | x_j,\beta)}
+	  \right) 
 \end{eqnarray*}
 
 \end{document} 

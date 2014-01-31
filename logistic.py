@@ -292,8 +292,8 @@ def logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, i=0):
 
     return theta
 
-def posonly_multinomial_log_probabilities(wx, b):
-    return clogistic.posonly_multinomial_log_probabilities(wx, b)
+def posonly_multinomial_log_probabilities(wx, b, q):
+    return clogistic.posonly_multinomial_log_probabilities(wx, b, q)
 
 def logsumexp2(wx, b):
     return clogistic.logsumexp2(wx, b)
@@ -314,7 +314,9 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
         b = 0.0
     else:
         fix_b = True
-        b = np.log((1.0 / c) - 1.0)
+        minimumC = float(np.sum(y)) / len(y)
+        q = (1.0 / (1.0 - minimumC)) - 1.0
+        b = -np.log((1.0 / c) - 1.0 - q)
         print 'Fixing c == %s' % c
 
     X, theta, N, M = prepend_and_vars(X)
@@ -335,7 +337,7 @@ def slow_posonly_multinomial_logistic_gradient_descent(w, X, y, N, M, eta0=ETA0,
             #print r, iteration, x, b, c, w
 
             wx = w.dot(x)
-            logPpl, logPpu, logPn = clogistic.posonly_multinomial_log_probabilities(wx, b)
+            logPpl, logPpu, logPn, logZ = clogistic.posonly_multinomial_log_probabilities(wx, b, 0)
 
             # calculate w
             dw = 0.0

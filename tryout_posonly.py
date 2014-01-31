@@ -47,7 +47,9 @@ if __name__ == '__main__':
     naive_points = []
     
     cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05, 0.3, 0.4, 0.7, 0.8, 0.02, 0.07, 0.92, 0.95, 0.97, 0.99]
-    cs = [(0.01 * i) for i in xrange(1, 99)]
+    cs = [(0.01 * i) for i in xrange(1, 10)]
+    cs.extend([(0.001 * i) for i in xrange(1, 10)])
+    cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
     for c in cs:
         positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
         X = np.vstack([positive_labeled, unlabeled])
@@ -106,8 +108,8 @@ if __name__ == '__main__':
         sgd = sklearn.grid_search.GridSearchCV(sgd, sgd_params)
         sgd.fit(X, y)
         #print sgd.best_params_
-        '''
         t = sgd.score(testX, testY)
+        '''
         try:
             t = sklearn.metrics.roc_auc_score(testY, sgd.predict_proba(testX)[:,1])
         except:

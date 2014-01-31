@@ -193,7 +193,7 @@ if __name__=='__main__':
         posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=200, eta0=0.1, c=None)
         best, curve = fit_and_generate_roc_curve(name, 'r-', posonly, X, y, test_set, test_labels)
         print 'b:', best.b_
-        print 'c:', (1.0 / (1.0 + np.exp(best.b_)))
+        print 'c:', best.final_c()
         roc_curves.append(curve)
 
         if USE_L2_REGULARIZED_LR:

@@ -33,6 +33,10 @@ cdef inline double inline_logsumexp3(double v1, double v2, double v3):
     max = MAX(MAX(v1, v2), v3)
     return log(exp(v1 - max) + exp(v2 - max) + exp(v3 - max)) + max
 
+cdef inline double inline_logsumexp4(double v1, double v2, double v3, double v4):
+    max = MAX(MAX(MAX(v1, v2), v3), v4)
+    return log(exp(v1 - max) + exp(v2 - max) + exp(v3 - max) + exp(v4 - max)) + max
+
 def wrap_fast_cython(f):
     @cython.boundscheck(False)
     @cython.wraparound(False)
@@ -51,6 +55,11 @@ def logsumexp2(double v1, double v2):
 def logsumexp3(double v1, double v2, double v3):
     """Exposes fasterlogsumexp"""
     return inline_logsumexp3(v1, v2, v3)
+
+@wrap_fast_cython
+def logsumexp4(double v1, double v2, double v3, double v4):
+    """Exposes fasterlogsumexp"""
+    return inline_logsumexp4(v1, v2, v3, v4)
 
 @wrap_fast_cython
 def logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
@@ -204,19 +213,19 @@ def sparse_modified_logistic_regression(
     return b
 
 @wrap_fast_cython
-def posonly_multinomial_log_probabilities(double wx, double b):
+def posonly_multinomial_log_probabilities(double wx, double b, double q):
     """Accepts x (1xD) vector, and beta parameteri vectors, (c labeling constant, w_p the positive parameters and w_n the negative ones).
         Returns 3-tuple that sums to 1 of the log odds of positive labeled, positive unlabeled, and negative.
     """
-    logZ = inline_logsumexp3(0, b, wx)
-    logPL = -logZ
-    logPU = b - logZ
+    logZ = inline_logsumexp4(0, log(q), -b, wx)
+    logPL = inline_logsumexp2(-b, log(q)) - logZ
+    logPU = -logZ
     logN = wx - logZ
-    return (logPL, logPU, logN)
+    return (logPL, logPU, logN, logZ)
 
 @wrap_fast_cython
-def posonly_multinomial_log_probability_of_label(wx, label, b):
-    logPL, logPU, logN = posonly_multinomial_log_probabilities(wx, b)
+def posonly_multinomial_log_probability_of_label(wx, label, b, q):
+    logPL, logPU, logN, logZ = posonly_multinomial_log_probabilities(wx, b, q)
     assert abs(logsumexp3(logPL, logPU, logN)) < 1e-7
 
     if label == 1:
@@ -254,12 +263,18 @@ def sparse_posonly_logistic_gradient_descent(
     cdef int param
     cdef long index
     cdef double ll
+    cdef double minimumC, q
 
     cdef np.ndarray[DTYPE_t, ndim=1] data
     cdef np.ndarray[int, ndim=1] indices
     cdef np.ndarray[int, ndim=1] indptr
     
     data, indices, indptr = sparseX.data, sparseX.indices, sparseX.indptr
+
+    minimumC = float(np.sum(S)) / len(S)
+    q = (1.0 / (1.0 - minimumC)) - 1.0
+    print 'minC:', minimumC
+    print 'q:', q
 
     for t in range(0, max_iter):
         eta = eta0
@@ -276,7 +291,7 @@ def sparse_posonly_logistic_gradient_descent(
             label = S[r]
 
             #print r, t, x, b, c, theta
-            logPpl, logPpu, logPn = posonly_multinomial_log_probabilities(wx, b)
+            logPpl, logPpu, logPn, logZ = posonly_multinomial_log_probabilities(wx, b, q)
 
             # calculate dw
             dw = 0.0
@@ -285,10 +300,21 @@ def sparse_posonly_logistic_gradient_descent(
             dw -= exp(logPn)
 
             # calculate db
-            db = 0.0
-            if label == 0:
-                db += exp(logPpl - inline_logsumexp2(logPpu, logPn))
-            db -= exp(logPpl)
+            db = 1.0
+            if label == 1:
+                db -= exp(-logPpl)
+            db *= (exp(logPpl) - exp(log(q) - logZ))
+
+            # debug: verify db
+            '''
+            db2 = 0.0
+            expb = exp(-b)
+            if label == 1:
+                db2 += -1 * expb / (expb + q)
+            db2 += (expb / (1 + q + expb + exp(wx)))
+            print 'dbs:', db, db2
+            assert abs(db - db2) < 0.001
+            '''
              
             # update dw
             for index in range(c, d):
@@ -310,8 +336,8 @@ def sparse_posonly_logistic_gradient_descent(
                     param = indices[index]
                     value = data[index]
                     wx += value * theta[param]
-                ll +=  posonly_multinomial_log_probability_of_label(wx, S[r], b)
-            calculated_c = 1.0 / (1.0 + exp(b))
+                ll +=  posonly_multinomial_log_probability_of_label(wx, S[r], b, q)
+            calculated_c = 1.0 / (1.0 + exp(-b))
             logging.debug('c: %s, b: %s, theta: %s', calculated_c, b, theta)
             logging.debug('t: %s, ll: %s', t, ll)
     return b, theta

@@ -15,6 +15,8 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
 
     def fit(self, X, y):
         self.classes_, indices = np.unique(y, return_inverse=True)
+        self.minimumC_ = float(np.sum(y)) / len(y)
+        self.q_ = (1.0 / (1.0 - self.minimumC_)) - 1.0
         self.b_, self.w_ = logistic.posonly_multinomial_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, c=self.c)
         return self
 
@@ -29,10 +31,12 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         N = X.shape[0]
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
-            logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(self.w_.dot(X[r]), self.b_)
+            logPL, logPU, logN, _ = logistic.posonly_multinomial_log_probabilities(self.w_.dot(X[r]), self.b_, self.q_)
             probas.append(np.exp([logN, logistic.logsumexp2(logPL, logPU)]))
         return np.array(probas)
 
+    def final_c(self):
+        return (1.0 / (1.0 + self.q_ + np.exp(-1 * self.b_)))
 
 class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
     """Stochastic Gradient Descent version of logistic regression.
