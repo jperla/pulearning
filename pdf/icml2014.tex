@@ -46,12 +46,12 @@
 
 % The \icmltitle you define below is probably too long as a header.
 % Therefore, a short form for the running title is supplied here:
-\icmltitlerunning{Augmented Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
+\icmltitlerunning{Modified Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
 
 \begin{document} 
 
 \twocolumn[
-\icmltitle{Augmented Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
+\icmltitle{Modified Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
 
 % It is OKAY to include author information, even for blind
 % submissions: the style file will automatically remove it for you
@@ -241,7 +241,7 @@ We calculate the gradients (derivations in the Supplementary Materials) in order
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=\columnwidth]{changingodds.png}}
-\caption{The $w$ parameter updates change the odds of the positive and negatives overall, but does not change $c$ the probability of being labeled. Updates on this parameter change the likelihood of the observed labels while also changing the overall probability of positive labels in the same direction. More positive or negative data will push it in the appropriate direction. }
+\caption{The $w$ parameter updates change the odds of the positive and negatives overall, but does not change $c$ the probability of being labeled. Updates on this parameter change the likelihood of the observed labels while also changing the overall probability of positive labels in the same direction. More positive or negative data will push it in the appropriate direction. $n_j = p(k=N|x_j,w)$ and $p_j = 1-n_j$. The likelihood is maximized when $c \cdot p_{j}$ is maximal for labeled points and minimized for unlabeled points. }
 \label{changingodds}
 \end{center}
 \vskip -0.2in

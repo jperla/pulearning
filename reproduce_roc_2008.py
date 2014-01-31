@@ -181,12 +181,10 @@ if __name__=='__main__':
         X = scipy.sparse.csr_matrix(X)
 
         # scale
-        import pdb; pdb.set_trace() 
         scaler = sklearn.preprocessing.StandardScaler(with_mean=False)
         scaler.fit(X)
         X = scaler.transform(X)
         test_set = scaler.transform(test_set)
-        import pdb; pdb.set_trace() 
 
         roc_curves = []
 

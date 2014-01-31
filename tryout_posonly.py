@@ -85,8 +85,9 @@ if __name__ == '__main__':
         posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=n_iter, eta0=0.1)
         posonly.fit(X, y)
         t = posonly.score(testX, testY)
+        #t = sklearn.metrics.roc_auc_score(testY, posonly.predict_proba(testX)[:,1])
         posonly_points.append([c, t])
-        print 'posonly:', t
+        print 'posonly:', t, 'c:', 1.0 / (1.0 + np.exp(posonly.b_))
 
         sgd_params = {'alpha':[1e-100, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1],
                       'loss':['log', 'hinge'],
@@ -97,6 +98,7 @@ if __name__ == '__main__':
         true_sgd.fit(optimalTrainX, optimalTrainY)
         #print true_sgd.best_params_
         t = true_sgd.score(testX, testY)
+        #t = sklearn.metrics.roc_auc_score(testY, true_sgd.predict_proba(testX)[:,1])
         optimal_points.append([c, t])
         print 'maximum:', t
 
@@ -104,7 +106,13 @@ if __name__ == '__main__':
         sgd = sklearn.grid_search.GridSearchCV(sgd, sgd_params)
         sgd.fit(X, y)
         #print sgd.best_params_
+        '''
         t = sgd.score(testX, testY)
+        try:
+            t = sklearn.metrics.roc_auc_score(testY, sgd.predict_proba(testX)[:,1])
+        except:
+            t = 0.0
+        '''
         naive_points.append([c, t])
         print 'naive sgd:', t
 
