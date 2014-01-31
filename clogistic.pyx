@@ -312,8 +312,8 @@ def sparse_posonly_logistic_gradient_descent(
                     wx += value * theta[param]
                 ll +=  posonly_multinomial_log_probability_of_label(wx, S[r], b)
             calculated_c = 1.0 / (1.0 + exp(b))
-            logging.debug(calculated_c, b, theta)
-            logging.debug(t, 'll: %s' % ll)
+            logging.debug('c: %s, b: %s, theta: %s', calculated_c, b, theta)
+            logging.debug('t: %s, ll: %s', t, ll)
     return b, theta
 
 @wrap_fast_cython

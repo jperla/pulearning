@@ -315,12 +315,13 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
     else:
         fix_b = True
         b = np.log((1.0 / c) - 1.0)
+        print 'Fixing c == %s' % c
 
     X, theta, N, M = prepend_and_vars(X)
     S = np.array(y, dtype=float)
     return switch_array(X,
                 lambda: slow_posonly_multinomial_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b),
-                lambda: clogistic.sparse_posonly_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b=False)
+                lambda: clogistic.sparse_posonly_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b)
     )
 
 

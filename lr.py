@@ -19,7 +19,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         return self
 
     def predict(self, X):
-        return np.array([t >=0.5  for t in self.predict_proba(X)[:,0]])
+        return np.array([t >=0.5  for t in self.predict_proba(X)[:,1]])
 
     def predict_proba(self, X):
         probas = []
@@ -30,7 +30,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         X = np.hstack([np.ones(N).reshape((N, 1)), X])
         for r in range(N):
             logPL, logPU, logN = logistic.posonly_multinomial_log_probabilities(self.w_.dot(X[r]), self.b_)
-            probas.append(np.exp([logistic.logsumexp2(logPL, logPU), logN]))
+            probas.append(np.exp([logN, logistic.logsumexp2(logPL, logPU)]))
         return np.array(probas)
 
 

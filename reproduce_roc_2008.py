@@ -138,6 +138,8 @@ if __name__=='__main__':
         logging.warning('Switching positive and negative datasets!')
         unlabeled_pos, pos = pos, unlabeled_pos 
 
+    true_c = float(pos.shape[0]) / (pos.shape[0] + unlabeled_pos.shape[0])
+
     truncate = lambda m: m[:int(m.shape[0] / 30),:]
     # Use less data so that we can move faster, comment this out to use full dataset
     #pos, neg, unlabeled_pos = truncate(pos), truncate(neg), truncate(unlabeled_pos)
@@ -179,6 +181,14 @@ if __name__=='__main__':
 
         roc_curves = []
 
+        # POSONLY
+        name = 'POLR pos-only labels'
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=10000, eta0=0.01,)
+        best, curve = fit_and_generate_roc_curve(name, 'r-', posonly, X, y, test_set, test_labels)
+        print 'b:', best.b_
+        print 'c:', (1.0 / (1.0 + np.exp(best.b_)))
+        roc_curves.append(curve)
+
         if USE_L2_REGULARIZED_LR:
             # alpha here is a regularization constant
             sgd_param_grid = {'alpha': [0.001, 0.0001,],}
@@ -195,12 +205,6 @@ if __name__=='__main__':
             name = 'L2-regularized LR true labels'
             _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
             roc_curves.append(curve)
-
-        # sci-kit learn's sgd classifier
-        name = 'POLR pos-only labels'
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=1000, eta0=0.1)
-        _, curve = fit_and_generate_roc_curve(name, 'r-', posonly, X, y, test_set, test_labels)
-        roc_curves.append(curve)
 
         lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,],}
 
