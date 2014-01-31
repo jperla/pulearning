@@ -47,7 +47,7 @@ if __name__ == '__main__':
     naive_points = []
     
     cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05, 0.3, 0.4, 0.7, 0.8, 0.02, 0.07, 0.92, 0.95, 0.97, 0.99]
-    cs = [(0.01 * i) for i in xrange(1, 10)]
+    cs = [(0.01 * i) for i in xrange(1, 100)]
     cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
 
     '''
