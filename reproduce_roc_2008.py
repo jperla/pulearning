@@ -196,13 +196,19 @@ if __name__=='__main__':
             _, curve = fit_and_generate_roc_curve(name, 'p-', sgd, X, y_labeled, test_set, test_labels)
             roc_curves.append(curve)
 
+        # sci-kit learn's sgd classifier
+        name = 'POLR pos-only labels'
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=1000, eta0=0.1)
+        _, curve = fit_and_generate_roc_curve(name, 'r-', posonly, X, y, test_set, test_labels)
+        roc_curves.append(curve)
+
         lr_param_grid = {'eta0': [0.01, 0.001,], 'n_iter':[200,],}
 
         major_case_b = 0.22941573387056188
         minor_case_b = 4.358898943540673
         mlr_param_grid = {} #'b': [major_case_b, 1.0, 2.0, 3.0, 4.0, 5.0]}
         mlr_param_grid.update(lr_param_grid)
-        name = 'Modified LR pos-only labels'
+        name = 'Ceiling LR pos-only labels'
         mlr = sklearn.grid_search.GridSearchCV(lr.SGDModifiedLogisticRegression(),
                                                mlr_param_grid, cv=3, n_jobs=-1)
 

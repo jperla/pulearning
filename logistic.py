@@ -241,7 +241,9 @@ def fast_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=ETA0, alpha=0, 
     y = np.array(y, dtype=np.float)
 
     if isinstance(X, scipy.sparse.csr.csr_matrix):
-        clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter, alpha, learning_rate)
+        assert alpha == 0, 'sparse does not support regularization'
+        assert learning_rate == 'default', 'sparse does not support different learning rates'
+        clogistic.sparse_logistic_regression(theta, X, y, N, M, eta0, max_iter)
     elif isinstance(X, np.ndarray):
         assert alpha == 0, 'non-sparse does not support regularization'
         assert learning_rate == 'default', 'non-sparse does not support different learning rates'
@@ -319,7 +321,7 @@ def posonly_multinomial_logistic_gradient_descent(X, y, max_iter=MAX_ITER, eta0=
     return switch_array(X,
                 lambda: slow_posonly_multinomial_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b),
                 lambda: clogistic.sparse_posonly_logistic_gradient_descent(theta, X, S, N, M, eta0, max_iter, b, fix_b=False)
-           )
+    )
 
 
 def slow_posonly_multinomial_logistic_gradient_descent(w, X, y, N, M, eta0=ETA0, max_iter=MAX_ITER, b=0.0, fix_b=False):

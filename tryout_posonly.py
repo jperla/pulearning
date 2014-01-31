@@ -11,28 +11,6 @@ np.seterr(all='raise')
 import lr
 import logistic
 
-def calculate_posonly(c, pos_sample, unlabeled, max_iter=100):
-    """Accepts Positive samples and unlabeled sets.
-            Also accepts validation set equivalents.
-            Also accepts maximum number of iterations for regression.
-       Returns a 2-tuple of the learned parameters, and estimators.
-            First element is 3-tuple of learned LR params, modified LR, and b.
-            Second element is 5-tuple of estimators, 
-                    (e1, e2, e3, e1_hat, e4_hat) according to the paper.
-    """
-    X = np.vstack([pos_sample, unlabeled])
-    y = np.hstack([np.array([1] * pos_sample.shape[0]),
-                np.array([0] * unlabeled.shape[0]),])
-    X, y = sklearn.utils.shuffle(X, y)
-    X = sklearn.preprocessing.normalize(X, axis=0)
-    
-    print 'starting LR...'
-    posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=max_iter, c=c)
-    posonly.fit(X, y)
-    print 'done LR...'
-    return posonly
-
-
 def add_x2_y2(a):
     """Accepts an (N,2) array, adds 2 more columns
         which are first col squared, second col squared.
@@ -64,7 +42,12 @@ if __name__ == '__main__':
 
     gaussian = np.random.multivariate_normal
 
-    cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05]
+    optimal_points = []
+    posonly_points = []
+    naive_points = []
+    
+    cs = [0.1, 0.2, 0.5, 0.9, 0.01, 0.05, 0.3, 0.4, 0.7, 0.8, 0.02, 0.07, 0.92, 0.95, 0.97, 0.99]
+    cs = [(0.01 * i) for i in xrange(1, 99)]
     for c in cs:
         positive, negative, positive_labeled, unlabeled = gen_sample(c, n_pos, n_neg)
         X = np.vstack([positive_labeled, unlabeled])
@@ -82,6 +65,18 @@ if __name__ == '__main__':
         testX, testY = sklearn.utils.shuffle(testX, testY)
         testX = scaler.transform(testX)
         testX = scipy.sparse.csr_matrix(testX)
+
+        optimalTrainX, optimalTrainY = testX, testY
+
+        # generate independent test sample
+        positive, negative, _, _ = gen_sample(c, n_pos, n_neg)
+        trueTestX = np.vstack([positive, negative])
+        trueTestY = np.hstack([np.array([1] * positive.shape[0]),
+                               np.array([0] * negative.shape[0]),])
+        trueTestX, trueTestY = sklearn.utils.shuffle(trueTestX, trueTestY)
+        trueTestX = scaler.transform(trueTestX)
+        #trueTestX = scipy.sparse.csr_matrix(trueTestX)
+        testX, testY = trueTestX, trueTestY
         
         print 'c:', c
 
@@ -89,21 +84,47 @@ if __name__ == '__main__':
 
         posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=n_iter, eta0=0.1)
         posonly.fit(X, y)
-        print 'posonly:', posonly.score(testX, testY)
+        t = posonly.score(testX, testY)
+        posonly_points.append([c, t])
+        print 'posonly:', t
 
-        true_sgd = sklearn.linear_model.SGDClassifier(loss='log', alpha=1e-100)
-        true_sgd.fit(testX, testY)
-        print 'maximum:', true_sgd.score(testX, testY)
+        sgd_params = {'alpha':[1e-100, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1],
+                      'loss':['log', 'hinge'],
+                      'penalty':['l2', 'l1'],
+                     }
+        true_sgd = sklearn.linear_model.SGDClassifier(loss='log', alpha=1e-3)
+        #true_sgd = sklearn.grid_search.GridSearchCV(true_sgd, sgd_params)
+        true_sgd.fit(optimalTrainX, optimalTrainY)
+        #print true_sgd.best_params_
+        t = true_sgd.score(testX, testY)
+        optimal_points.append([c, t])
+        print 'maximum:', t
 
         sgd = sklearn.linear_model.SGDClassifier(loss='log', alpha=1e-100)
+        sgd = sklearn.grid_search.GridSearchCV(sgd, sgd_params)
         sgd.fit(X, y)
-        print 'naive sgd:', sgd.score(testX, testY)
+        #print sgd.best_params_
+        t = sgd.score(testX, testY)
+        naive_points.append([c, t])
+        print 'naive sgd:', t
 
-        dumb = sklearn.dummy.DummyClassifier(strategy='most_frequent',random_state=0)
-        dumb.fit(X, y)
-        print 'most frequent:', dumb.score(testX, testY)
+    optimal_points = np.array(sorted(optimal_points))
+    posonly_points = np.array(sorted(posonly_points))
+    naive_points = np.array(sorted(naive_points))
 
-        dumb = sklearn.dummy.DummyClassifier(strategy='stratified',random_state=0)
-        dumb.fit(X, y)
-        print 'stratified:',dumb.score(testX, testY)
+    fig = pyplot.figure()
+    ax = fig.add_subplot(111)
+    ax.plot(posonly_points[:,0], posonly_points[:,1], 'bo--', label="POLR pos-only labels")
+    ax.plot(optimal_points[:,0], optimal_points[:,1], 'go-', label="LR true labels")
+    ax.plot(naive_points[:,0], naive_points[:,1], 'ro-', label="LR pos-only labels")
+
+    ax.set_title('Comparing logistic regression on synthetic data')
+    ax.set_xlabel('C')
+    ax.set_ylabel('Test Accuracy')
+
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, loc=3)
+
+    fig.savefig('pdf/simulated.png')
+    fig.show()
 

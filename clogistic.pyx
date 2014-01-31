@@ -316,9 +316,6 @@ def sparse_posonly_logistic_gradient_descent(
             logging.debug(t, 'll: %s' % ll)
     return b, theta
 
-
-
-
 @wrap_fast_cython
 def sparse_logistic_regression(np.ndarray[DTYPE_t, ndim=1] theta not None, 
                         object sparseX not None,
