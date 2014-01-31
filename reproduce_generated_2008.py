@@ -97,6 +97,8 @@ if __name__ == '__main__':
         ax.scatter(pos[:,0], pos[:,1], s=6, c='b', marker='+')
         ax.scatter(neg[:,0], neg[:,1], s=6, c='r', marker='o', lw=0)
 
+        ax.legend(, ['r', , loc=3)
+
         delta = 0.01
         x, y = np.arange(-8, 8, delta), np.arange(-10, 10, delta)
         X, Y = np.meshgrid(x, y)

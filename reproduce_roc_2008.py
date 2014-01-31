@@ -177,13 +177,22 @@ if __name__=='__main__':
         X, y, y_labeled = sklearn.utils.shuffle(X, y, y_labeled)
         N_FEATURES = 25000 # shrink number of features to test over-fitting
         X, test_set = X[:, :N_FEATURES], test_set[:, :N_FEATURES]
-        X = scipy.sparse.csr_matrix(X) # sparsify X
+        # sparsify X
+        X = scipy.sparse.csr_matrix(X)
+
+        # scale
+        import pdb; pdb.set_trace() 
+        scaler = sklearn.preprocessing.StandardScaler(with_mean=False)
+        scaler.fit(X)
+        X = scaler.transform(X)
+        test_set = scaler.transform(test_set)
+        import pdb; pdb.set_trace() 
 
         roc_curves = []
 
         # POSONLY
         name = 'POLR pos-only labels'
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=10000, eta0=0.01,)
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=200, eta0=0.1, c=None)
         best, curve = fit_and_generate_roc_curve(name, 'r-', posonly, X, y, test_set, test_labels)
         print 'b:', best.b_
         print 'c:', (1.0 / (1.0 + np.exp(best.b_)))

@@ -73,7 +73,7 @@
 ]
 
 \begin{abstract} 
-In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.  We develop two algorithms which are simple modifications to logistic regression: Ceiling Logistic Regression and Positive-Only Logistic Regression. They classify the true labels of the training set given only the restricted set of labels.  In particular, \emph{training Positive-Only Logistic Regression using a small subset of positive labels performs as well as training standard logistic regression using all of the true labels} when comparing accuracy on a test set.  We show that we can make strong predictions with very limited positive-only data.
+In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.  We develop two algorithms which are simple modifications to logistic regression: Ceiling Logistic Regression and Positive-Only Logistic Regression. They classify the true labels of the training set given only the restricted set of labels.  In particular, on synthetic data, training Positive-Only Logistic Regression using a small subset of positive labels performs as well as training standard logistic regression using all of the true labels when comparing accuracy on a test set.  We show that we can make strong predictions with very limited positive-only data.
 
 \end{abstract} 
 
@@ -84,7 +84,7 @@ Many datasets do not have full training data that includes a large number of pos
 \begin{figure*}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=150mm]{syntheticlr.png}}
+\centerline{\includegraphics[width=120mm]{syntheticlr.png}}
 \caption{Blue points are positive examples, red negative. The largest dark blue ellipse is the result of training standard LR on all of the data labeled. The smaller light blue ellpise is the result of training standard LR on the positive vs unlabeled examples. The red ellipse is from training Ceiling LR on the positive vs unlabeled examples. The features were $x$, $y$, $x \cdot x$, and $y \cdot y$.  Ceiling LR captures a more representative sample of the positive datapoints, as well as calculating the approximate value of $c = 0.2 \approx 0.196$.   500 positive datapoints were generated using a random gaussian with mean (2, 2) and covariance [[1, 1], [1, 4]].  1000 negative datapoints were generated with mean (-2, -3) and covariance [[4, -1], [-1, 4]]}
 \label{synthetic}
 \end{center}
@@ -114,7 +114,7 @@ We also show results for a weighted SVM algorithm, where the SVM classifier is r
 \begin{figure*}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=150mm]{rocproteindata.png}}
+\centerline{\includegraphics[width=120mm]{rocproteindata.png}}
 \caption{The ROC curves for various learning algorithms on sets of the protein dataset.  Note that we zoom into the most interesting region in the top left.  As expected, both LR and SVM trained on the true labels perform the best and approximately equally on the test set (10 holdout). Standard LR and SVM on the positive data versus the unlabeled data perform poorly.  The best previous work, Biased SVM, does not perform much better than the baselines.  The Ceiling Logistic Regression trained on the positive labeled data and unlabeled data performs nearly as well on the test set as the classifiers trained with full knowledge of all positive and negative labels.}
 \label{roc}
 \end{center}
@@ -142,7 +142,7 @@ p(y=1) &=& \frac{p(s=1)}{p(\ell = 1|y = 1)} \\
  &=& \frac{|P|}{c|P+U|}
 \end{eqnarray*}
 
-\cite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(\ell=1|x) = c = p(\ell=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This occurs often when the positive and negative distributions overlap (and never when they are separable). The correct derivation, because $p(\ell=1|y=0)=0$, is
+Elkan and Noto \yrcite{elkan08} contains a math error.  Significantly, it concludes that $g(x) = p(\ell=1|x) = c = p(\ell=1|y=1)$. This is incorrect, because it assumes that if a given $x \in P$, then $p(y=1|x) = 1$, however a given set of features may probabilistically be positive for some examples and negative for others. This occurs often when the positive and negative distributions overlap (and never when they are separable). The correct derivation, because $p(\ell=1|y=0)=0$, is
 
 \begin{eqnarray*}
 g(x) &=& p(\ell=1|x) \\
@@ -166,7 +166,7 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 \begin{figure*}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=150mm]{rocswappedproteindata.png}}
+\centerline{\includegraphics[width=120mm]{rocswappedproteindata.png}}
 \caption{We re-run the algorithms from Figure 1 on the same dataset, but swapping the unlabeled positive examples for the labeled positive examples. Our new dataset contains 4558 negative examples, 2453 unlabeled positive examples, and only 348 labeled positive examples.  Ceiling LR still performs significantly better than baselines and previous work, although not as well as knowing the full dataset.  These results are impressive because less than 5\% of the examples are labeled, all of which are positive labels. The weighted SVM and other SVMs may not be optimally calibrated.}
 \label{rocswapped}
 \end{center}
@@ -176,7 +176,7 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 \begin{figure*}[ht!]
 \vskip 0.2in
 \begin{center}
-\centerline{\includegraphics[width=150mm]{simulated.png}}
+\centerline{\includegraphics[width=120mm]{simulated.png}}
 \caption{Simulating two gaussians as above, we can compare logistic regression on the true labels as compared to logistic regression, and POLR on a positive-only dataset with various values of $c$.}
 \label{synthetic}
 \end{center}
@@ -187,17 +187,9 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 
 Positive-Only Logistic Regression (POLR) is based on multinomial logistic regression, a multi-class generalization of binary logistic regression also known as softmax regression.  In standard 3-class multinomial logistic regression,
 
-$$
-p(k=1 | x, w_1, w_2, w_3) =  \frac{e^{w_1 \cdot x}}{Z_N}
-$$
-
-$$
-p(k=2 | x, w_1, w_2, w_3) =  \frac{e^{w_2 \cdot x}}{Z_N}
-$$
-
-$$
-p(k=3 | x, w_1, w_2, w_3) =  \frac{e^{w_3 \cdot x}}{Z_N}
-$$
+$$p(k=1 | x, w_1, w_2, w_3) =  \frac{e^{w_1 \cdot x}}{Z_N}$$
+$$p(k=2 | x, w_1, w_2, w_3) =  \frac{e^{w_2 \cdot x}}{Z_N}$$
+$$p(k=3 | x, w_1, w_2, w_3) =  \frac{e^{w_3 \cdot x}}{Z_N}$$
 
 $Z_N$ is the normalization factor, the sum of the 3 numerators, and $\sum_{k=1,2,3}{p(k_j=k|x_j, w_1, w_2, w_3)} = 1$.
 
@@ -215,15 +207,13 @@ $$ p(k=N | x, w) = \frac{e^{w \cdot x}}{1 + e^{-b} + e^{w \cdot x}}$$
 
 Where $w = w_n - w_p$. Notice that, $\forall x$,
 
-$$
-\frac{p(k=P_L | x, w)}{p(k=P_L | x, w) + p(k=P_U | x, w)} = \frac{1}{1 + e^{-b}} = c
-$$
+$$\frac{p(k=P_L | x, w)}{p(k=P_L | x, w) + p(k=P_U | x, w)} = \frac{1}{1 + e^{-b}} = c$$
 
-Thus, $c$ is the constant fraction of positive samples which are labeled.
+Thus, $c$ is the constant fraction of positive samples which are labeled. $c$ is always between 0 and 1.
 
 \subsection{Learning $\beta = b, w$ from $D$}
 
-Assuming we have independently drawn data $D$, the conditional log likelihood, where $\beta = c, w_p, w_n$ is
+Assuming we have independently drawn data $D$, the conditional log likelihood, where $\beta = b, w$ is
 
 \begin{eqnarray*}
 \log{p(D | \beta)} &=& \log \prod_{j=1...n}{p(\ell_j, x_j | \beta)} \\
@@ -247,12 +237,30 @@ We calculate the gradients (derivations in the Supplementary Materials) in order
     \big)
 \end{eqnarray*}
 
-$$
-\nabla_{b}{Err_R (x_j, \beta)}  = I(\ell_j=0) \cdot
+\begin{figure}[ht!]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{changingodds.png}}
+\caption{The $w$ parameter updates change the odds of the positive and negatives overall, but does not change $c$ the probability of being labeled. Updates on this parameter change the likelihood of the observed labels while also changing the overall probability of positive labels in the same direction. More positive or negative data will push it in the appropriate direction. }
+\label{changingodds}
+\end{center}
+\vskip -0.2in
+\end{figure}
+
+$$\nabla_{b}{Err_R (x_j, \beta)}  = I(\ell_j=0) \cdot
 		\frac{p(\ell_j=1)}{p(\ell_j=0)}
 		-
-		 p(\ell_j=1)
-$$
+		 p(\ell_j=1)$$
+
+\begin{figure}[ht!]
+\vskip 0.2in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{changingc.png}}
+\caption{The $b$ parameter updates change $c$ the probability of being labeled, but does not affect the proportion of positive to negative at each example. Updates to $b$ increase the likelihood of the observed data only without affecting the proportion of positive vs negative data overall. It is a weighted average of the observed label proportions.  It reaches a stable point when $\sum_{j}{p(\ell_j=1|x_j,w)}$ is the true proportion of labeled data.}
+\label{changingc}
+\end{center}
+\vskip -0.2in
+\end{figure}
 
 We do not regularize the weights in our implementation.
 
@@ -272,7 +280,7 @@ The positive-only case can be seen as a special case of label-noise with 0 proba
 
 \section{Future Work}
 
-Ideally, we would like to be able to relax the assumption that $p(\ell_j|x)=c$ for all $x$.  It may be possible to extend Positive-Only Logistic Regression to the semi-supervised setting, where we also have negative labels.  It would also be interesting to extend this to the multi-class or multi-label setting, especially since it is already based on multinomial logistic regression.  Finally, the true label ends up being a hidden variable in the model. It would be interesting to see if we can model more complex hidden variable interactions with logistic regression.
+Ideally, we would like to be able to relax the assumption that $p(\ell_j|x)=c$ for all $x$.  In addition, it may be possible to extend Positive-Only Logistic Regression to the semi-supervised setting, where we also have some negative labels.  It would also be interesting to extend this to the multi-class or multi-label setting, especially since it is already based on multinomial logistic regression.  Finally, the true label ends up being a hidden variable in the model. It would be interesting to see if we can model more complex hidden variable interactions with logistic regression.
 
 \section{Conclusions}
 
