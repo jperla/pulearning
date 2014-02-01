@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 from sklearn.base import BaseEstimator, ClassifierMixin
+from sklearn.utils.fixes import unique
 
 import logistic
 
@@ -14,7 +15,7 @@ class SGDPosonlyMultinomialLogisticRegression(BaseEstimator, ClassifierMixin):
         self.c = c
 
     def fit(self, X, y):
-        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.classes_, indices = unique(y, return_inverse=True)
         self.minimumC_ = float(np.sum(y)) / len(y)
         self.q_ = (1.0 / (1.0 - self.minimumC_)) - 1.0
         self.b_, self.w_ = logistic.posonly_multinomial_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, c=self.c)
@@ -59,7 +60,7 @@ class SGDLogisticRegression(BaseEstimator, ClassifierMixin):
         self.learning_rate = learning_rate
 
     def fit(self, X, y):
-        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.classes_, indices = unique(y, return_inverse=True)
         self.theta_ = logistic.fast_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, alpha=self.alpha, learning_rate=self.learning_rate)
         return self
 
@@ -84,7 +85,7 @@ class SGDModifiedLogisticRegression(BaseEstimator, ClassifierMixin):
         self.b = b
 
     def fit(self, X, y):
-        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.classes_, indices = unique(y, return_inverse=True)
         self.theta_, self.b_ = logistic.fast_modified_logistic_gradient_descent(X, y, max_iter=self.n_iter, eta0=self.eta0, b=self.b)
         return self
 
@@ -115,7 +116,7 @@ class LBFGSLogisticRegression(BaseEstimator, ClassifierMixin):
         self.n_iter = n_iter
 
     def fit(self, X, y):
-        self.classes_, indices = np.unique(y, return_inverse=True)
+        self.classes_, indices = unique(y, return_inverse=True)
         self.theta_ = logistic.lbfgs_logistic_regression(X, y, alpha=self.alpha, n_iter=self.n_iter)
         return self
 

@@ -73,13 +73,13 @@
 ]
 
 \begin{abstract} 
-In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We studied the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with constant probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.  We develop two algorithms which are simple modifications to logistic regression: Ceiling Logistic Regression and Positive-Only Logistic Regression. They classify the true labels of the training set given only the restricted set of labels.  In particular, on synthetic data, training Positive-Only Logistic Regression using a small subset of positive labels performs as well as training standard logistic regression using all of the true labels when comparing accuracy on a test set.  We show that we can make strong predictions with very limited positive-only data.
+In a common supervised learning task, we are given a training set where all samples are labeled either positive or negative. Semi-supervised algorithms operate on input training sets with some positive and negative labels, and some unlabeled data.  We study the positive-only problem where the training set has an incomplete set of positive labels, no negative labels, and the remainder unlabeled.  In this paper, we assume that the labeled positive samples are selected uniformly at random from the set of all positive samples in the training set with constant probability $c$. Therefore, the labeled and unlabeled positive samples in the training set have identical distributions.  We develop two algorithms ``ceiling logistic regression" and ``positive-only logistic regression". They classify the true labels of the training set given only the restricted set of labels.  In particular, on synthetic data, positive-only logistic regression, trained on a small subset of positive labels performs as well as standard logistic regression, trained on all of the true labels on test data.  We show that we can make strong predictions with very limited positive-only data.
 
 \end{abstract} 
 
 \section{Introduction}
 
-Many datasets do not have full training data that includes a large number of positive and negative labeled data.  With the growth of computers, datasets today very often have a small amount of manually labeled data, and a large amount of unlabeled data. Moreover, it is common for one class to be more expensive or even impossible to label.  Examples problems in the literature include wildlife habitats \cite{ward08}, and molecular biology databases \cite{elkan08}.  Note that this situation is different from most semi-supervised learning because previous work on semi-supervised learning does have some negatively labeled data.  A synonym for \emph{positive-only} data is \emph{presence-only} data \cite{ward08}.
+Many datasets do not have full training data that includes a large number of positive and negative labeled examples.  With the increasing size of datasets, often only a small amount of data is manually labeled, while unlabeled data is abundant. Moreover, it is common for one class to be more expensive or even impossible to label.  Example problems in the literature include wildlife habitats \cite{ward08}, and molecular biology databases \cite{elkan08}.  Note that this situation is different from most semi-supervised learning because previous work on semi-supervised learning does have some negatively labeled data.  A synonym for \emph{positive-only} data is \emph{presence-only} data \cite{ward08}.
 
 \subsection{The Problem}
 
@@ -95,7 +95,7 @@ Many datasets do not have full training data that includes a large number of pos
 
 The only input are $N$ feature vectors with a subset of them having the label $\mathbf{1}$ and the rest unlabeled.  
 
-We do not assume that we know the proportion of positive data in the training set ($p(y=1)$) nor do we assume or take as input the probability of labeling a positive instance $c$.  We learn both jointly with all of the models presented in this paper.  We do observe that, in expectation, the proportion of labeled examples ($p(\ell=1)$) in the training set is near the minimum possible $c$ and the minimum possible $p(y=1)$. If $c$ or $p(y=1)$ were much lower than $p(\ell=1)$, then the likelihood of the data would be very low.  We use this fact in Positive-Only Logistic Regression.
+We do not assume that we know the proportion of positive data in the training set ($p(y=1)$) nor do we assume or take as input the probability of labeling a positive instance $c$.  We learn both jointly with all of the models presented in this paper.  We do observe that, in expectation, the proportion of labeled examples ($p(\ell=1)$) in the training set is near the minimum possible $c$ and the minimum possible $p(y=1)$. If $c$ or $p(y=1)$ were much lower than $p(\ell=1)$, then the likelihood of the data would be very low.  We use this fact in positive-only logistic regression.
 
 \begin{figure*}[ht!]
 \vskip 0.2in
@@ -131,14 +131,14 @@ We also show results for a weighted SVM algorithm, where the SVM classifier is r
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=120mm]{rocproteindata.png}}
-\caption{The ROC curves for various learning algorithms on sets of the protein dataset.  Note that we zoom into the most interesting region in the top left.  As expected, both LR and SVM trained on the true labels perform the best and approximately equally on the test set (10 holdout). Standard LR and SVM on the positive data versus the unlabeled data perform poorly.  The best previous work, Biased SVM, does not perform much better than the baselines.  The Ceiling Logistic Regression trained on the positive labeled data and unlabeled data performs nearly as well on the test set as the classifiers trained with full knowledge of all positive and negative labels.}
+\caption{The ROC curves for various learning algorithms on sets of the protein dataset.  Note that we zoom into the most interesting region in the top left.  As expected, both LR and SVM trained on the true labels perform the best and approximately equally on the test set (10 holdout). Standard LR and SVM on the positive data versus the unlabeled data perform poorly.  The best previous work, Biased SVM, does not perform much better than the baselines.  The \emph{ceiling logisting regression} trained on the positive labeled data and unlabeled data performs nearly as well on the test set as the classifiers trained with full knowledge of all positive and negative labels.}
 \label{roc}
 \end{center}
 \vskip -0.2in
 \end{figure*}
 \subsection{Ceiling Logistic Regression}
 
-One contribution of this paper is a modified version of logistic regression that we solve using stochastic gradient training called Ceiling Logistic Regression (CLR).  Whereas standard logistic regression calculates
+One contribution of this paper is a modified version of logistic regression that we solve using stochastic gradient training called \emph{ceiling logistic regression} (CLR).  Whereas standard logistic regression calculates
 
 $$ p(y=1|x) = \frac{1}{1 + e^{w \cdot x}} $$
 
@@ -171,7 +171,7 @@ The best estimator of $c$ using this classifier is one based on the trained valu
 
 $$c \approx \frac{1}{1 + b^2}$$
 
-This is because Ceiling Logistic Regression generates calibrated probabilities in the same way that standard logistic regression does, but instead of having a maximum probability of $1$ for a positive label, it can only have a maximum probability (ceiling) of $p(\ell=1|y=1)=c$. Any positive example has at most probability $c$ of being labeled.  Ceiling Logistic Regression calibrates its probabilities directly and finds $b$ during training of
+This is because CLR generates calibrated probabilities in the same way that standard logistic regression does, but instead of having a maximum probability of $1$ for a positive label, it can only have a maximum probability (ceiling) of $p(\ell=1|y=1)=c$. Any positive example has at most probability $c$ of being labeled.  CLR calibrates its probabilities directly and finds $b$ during training of
 
 $$g(x) = \frac{1}{1 + b^2 + e^{w \cdot x}}$$
 
@@ -193,7 +193,7 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 \vskip 0.2in
 \begin{center}
 \centerline{\includegraphics[width=120mm]{simulated.png}}
-\caption{Simulating two gaussians as above, we can compare logistic regression on the true labels as compared to logistic regression, and POLR on a positive-only dataset with various values of $c$. In this chart, we plot the accuracy on a separate test set generated with the same parameters but varying $c$ from 1\% to 100\%.  Positive-Only Logistic Regression performs as well as knowing the full training label set even when losing 90+\% of the training labels. Baseline methods require a majority of the label data.}
+\caption{Simulating two gaussians as above, we can compare logistic regression on the true labels as compared to logistic regression, and POLR on a positive-only dataset with various values of $c$. In this chart, we plot the accuracy on a separate test set generated with the same parameters but varying $c$ from 1\% to 100\%.  \emph{positive-only logistic regression} performs as well as knowing the full training label set even when losing 90+\% of the training labels. Baseline methods require a majority of the label data.}
 \label{synthetic}
 \end{center}
 \vskip -0.2in
@@ -201,7 +201,7 @@ $$g(x) = \frac{1}{1 + b^2} \approx c$$
 
 \section{Positive-Only Logistic Regression}
 
-Positive-Only Logistic Regression (POLR) is based on multinomial logistic regression, a multi-class generalization of binary logistic regression also known as softmax regression \cite{renie05}.  In standard 3-class multinomial logistic regression,
+\emph{Positive-only logistic regression} (POLR) is based on multinomial logistic regression, a multi-class generalization of binary logistic regression also known as softmax regression \cite{renie05}.  In standard 3-class multinomial logistic regression,
 
 $$p(k=1 | x, w_1, w_2, w_3) =  \frac{e^{w_1 \cdot x}}{Z_N}$$
 $$p(k=2 | x, w_1, w_2, w_3) =  \frac{e^{w_2 \cdot x}}{Z_N}$$
@@ -286,7 +286,7 @@ As in Ceiling LR, we do not regularize the weights in our implementation.
 
 \subsection{Convexity}
 
-Positive-Only Logistic Regression's error function is convex for the same reason that standard Logistic Regression is convex. The error function is the sum of the log of a number of individual likelihoods for each training sample. Each of these is an affine function term plus a log of the sum of an exponential of an affine function. The log of the sum of an exponential is convex, as is the affine function.  Therefore, all of them summed together are also convex.  If we were to add regularization, then it would be strictly convex.  Strict convexity is less important for stochastic gradient training we do here because in SGD the gradient is not computed exactly anyway and therefore will likely always point somewhere.
+POLR's error function is convex for the same reason that standard Logistic Regression is convex. The error function is the sum of the log of a number of individual likelihoods for each training sample. Each of these is an affine function term plus a log of the sum of an exponential of an affine function. The log of the sum of an exponential is convex, as is the affine function.  Therefore, all of them summed together are also convex.  If we were to add regularization, then it would be strictly convex.  Strict convexity is less important for stochastic gradient training we do here because in SGD the gradient is not computed exactly anyway and therefore will likely always point somewhere.
 
 \section{Experiments}
 
@@ -304,7 +304,7 @@ The algorithms were run on the SwissProt \cite{elkan08} dataset of 7359 proteins
 
 \section{Discussion}
 
-The power of Positive-Only Logistic Regression comes from the assumption that the labeling is done uniformly at random on the positive samples.  The stochastic gradient training then optimizes $w$ so that the probability of the labeled examples is high, while simultaneously having $c$ slack to mislabel by jointly training the bias parameter $b$.  This is similar to the regularization parameter $C$ in SVMs, however it has a clearer interpretation.  Moreover, POLR does not require a non-probabilistic regularization parameter added to its likelihood function to achieve state-of-the-art results.
+The power of POLR comes from the assumption that the labeling is done uniformly at random on the positive samples.  The stochastic gradient training then optimizes $w$ so that the probability of the labeled examples is high, while simultaneously having $c$ slack to mislabel by jointly training the bias parameter $b$.  This is similar to the regularization parameter $C$ in SVMs, however it has a clearer interpretation.  Moreover, POLR does not require a non-probabilistic regularization parameter added to its likelihood function to achieve state-of-the-art results.
 
 \section{Related Work}
 
@@ -314,157 +314,16 @@ The positive-only case can be seen as a special case of label-noise with 0 proba
 
 The performance on real-world SwissProt data was poorer than on synthetic data likely because the probability of choosing $c$ is not uniform but biased in some way. Ideally, we would like to be able to relax the assumption that $p(\ell_j|x)=c$ for all $x$.  
 
-It may be possible to extend Positive-Only Logistic Regression to the semi-supervised setting, where we also have some negative labels, in order to solve the label-noise problem.
+It may be possible to extend POLR to the semi-supervised setting, where we also have some negative labels, in order to solve the label-noise problem.
 
 It would also be interesting to extend this to the multi-class or multi-label setting, especially since it is already based on multinomial logistic regression. Finally, the true label ends up being a hidden variable in the model. It would be interesting to see if we can model more complex hidden variable interactions with logistic regression.
 
 \section{Conclusions}
 
-We presented several algorithms for learning from positive only data. Large amounts of unlabeled data are common, and it can be expensive to label more than a tiny amount of it.  Moreover, one class may be more expensive to label than another. Synthetic experiments show that Positive-Only Logistic Regression on just 1\% of the just positive labels can perform as well as standard LR on the true labels, saving orders of magnitude in labeling costs.
+We presented several algorithms for learning from positive only data. Large amounts of unlabeled data are common, and it can be expensive to label more than a tiny amount of it.  Moreover, one class may be more expensive to label than another. Synthetic experiments show that POLR on just 1\% of the just positive labels can perform as well as standard LR on the true labels, saving orders of magnitude in labeling costs.
 
 \bibliography{icml2014}
 \bibliographystyle{icml2014}
-
-\onecolumn
-
-\section{Appendix A: Derivations of Stochastic Updates for Positive-Only Logistic Regression}
-
-\subsection{Positive-Only Logistic Regression Model}
-
-Let $q = \frac{1}{1 - minimumC} - 1$.
-
-$$
-p(k=P_L | x, w_p, w_n) =  \frac{e^{w_p \cdot x - b} + e^{w_p \cdot x + \log{q}}}{Z_{POLR}} 
-				     = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
-$$
-$$
-p(k=P_U | x, w_p, w_n) =  \frac{e^{w_p \cdot x}}{Z_{POLR}} 
-				     = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
-$$
-$$
-p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_{POLR}} 
-				 = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
-$$
-And then dividing every term by $w_p$ and setting $w = w_n - w_p$.
-$$
-p(k=P_L | x, w_p, w_n) = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
- 				     = \frac{e^{-b} + q}{1 + q + e^{-b} + e^{w \cdot x}}
-$$
-$$
-p(k=P_U | x, w_p, w_n) = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
-				     = \frac{1}{1 + q + e^{-b} + e^{w \cdot x}}
-$$
-$$
-p(k=N | x, w_p, w_n) = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
-				= \frac{e^{w \cdot x}}{1 + q + e^{-b} + e^{w \cdot x}}
-$$
-
-
-So we only need to learn the vector $w$.
-
-\subsection{Gradients}
-
-We want to use stochastic gradient following to learn the parameters $\beta$. So take the partial derivatives of the log conditional likelihood (LCL) for each parameter.
-
-\subsubsection{$ \nabla_{w_i}{Err_R (D, \beta)}$}
-
-$$
-\nabla_{w_i}{Err_R (D, \beta)} = \frac{\partial}{\partial w_i} \log{p(D|\beta)} =  \sum_{j=1...n}{\frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)}}
-$$
-
-so for each $i,j$, ($Z = 1 + q + e^{-b} + e^{w \cdot x}$),
-
-
-\begin{eqnarray*}
-\nabla_{w_{i,j}}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)} \\
- &=& \frac{\partial}{\partial w_i}
-		\log{\Bigg(
-			I(\ell_j=1) \cdot \left( \frac{e^{-b} + q}{Z} \right) + 
-			I(\ell_j=0) \cdot \left(\frac{1}{Z} + \frac{e^{w \cdot x}}{Z} \right)
-		\Bigg)} \\
- &=& \frac{\partial}{\partial w_i}
-		\log{\Bigg(
-		    \frac{
-			I(\ell_j=1) \cdot \left( e^{-b} + q \right) + 
-			I(\ell_j=0) \cdot \left(1 + e^{w \cdot x} \right)
-		     }{Z}
-		\Bigg)} \\
- &=& \frac{\partial}{\partial w_i}
-		\log{\bigg(
-			I(\ell_j=1) \cdot \left( e^{-b} + q \right) +
-			I(\ell_j=0) \cdot \left( 1 + e^{w \cdot x} \right)
-		\bigg)}
-		- \frac{\partial}{\partial w_i}
-		 \log{Z} \\
- &=& I(\ell_j=1) \cdot \frac{\partial}{\partial w_i}
-		\log{(e^{-b} + q)} +
-    I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
-		\log{ \left( 1 + e^{w \cdot x} \right) }
-		- \frac{\partial}{\partial w_i}
-		 \log{Z} \\
- &=& I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
-		\log{  \left( 1 + e^{w \cdot x} \right) }
-		- \frac{\partial}{\partial w_i}
-		 \log{Z} \\
- &=& I(\ell_j=0) \cdot 
- 		\frac{
-			e^{w \cdot x}
-		}{
-			1 + e^{w \cdot x}
-		} \cdot x_{j,i}
-		- \frac{\partial}{\partial w_i}
-		 \log{Z} \\
- &=& I(\ell_j=0) \cdot 
- 		\frac{
-			e^{w \cdot x}
-		}{
-			1 + e^{w \cdot x}
-		} \cdot x_{j,i}
-		- \frac{e^{w \cdot x}}{
-			1 + e^{-b} + e^{w \cdot x}
-		} \cdot x_{j,i} \\
- &=& x_{j,i} \cdot
-    \big(	I(\ell_j=0) \cdot p(k_j=N | \ell_j=0, x_j, \beta) - 
-		p(k_j=N | x_j, \beta)
-    \big) \\
-\end{eqnarray*}
-
-\subsubsection{$ \nabla_{b}{Err_R (D, \beta)}$}
-
-Similarly for the parameter $b$ in $\beta$, for each $j$,
-
-\begin{eqnarray*}
-\nabla_{b}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial c}\log{p(\ell_j | x_j, \beta)} \\
-&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
-		\log{(e^{-b} + q)} +
-    I(\ell_j=0) \cdot \frac{\partial}{\partial b}
-		\log{ \left( 1 + e^{w \cdot x} \right) }
-		- \frac{\partial}{\partial b}
-		 \log{Z} \\
-&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
-		\log{(e^{-b} + q)} -
-		\frac{\partial}{\partial b}
-		 \log{Z} \\
- &=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
-		\log{  \left( e^{-b} + q \right) }
-		- \frac{\partial}{\partial b}
-		 \log{\bigg(
-			1 + q + e^{-b} + e^{w \cdot x}
-		\bigg)} \\
- &=& - I(\ell_j=1) \cdot
-		\frac{e^{-b}}{e^{-b} + q}
-		+
-		 \frac{e^{-b}}{
-			1 + q + e^{-b} + e^{w \cdot x}
-		} \\
- &=& - I(\ell_j=1) \cdot
-		\frac{ \left( p(k=P_L | x_j,\beta) - \frac{q}{Z} \right) }{p(k=P_L | x_j,\beta)}
-		+
-		 p(k=P_L | x_j,\beta) - \frac{q}{Z} \\
- &=& \Big( p(k=P_L | x_j,\beta) - \frac{q}{Z} \Big) \cdot \left( 
-		1 - \frac{ I(\ell_j=1)}{p(k=P_L | x_j,\beta)}
-	  \right) 
-\end{eqnarray*}
 
 \end{document} 
 

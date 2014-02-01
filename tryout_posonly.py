@@ -108,7 +108,7 @@ if __name__ == '__main__':
         t = posonly.score(testX, testY)
         #t = sklearn.metrics.roc_auc_score(testY, posonly.predict_proba(testX)[:,1])
         posonly_points.append([c, t])
-        print 'posonly:', t, 'c:', 1.0 / (1.0 + np.exp(posonly.b_))
+        print 'posonly:', t, 'c:', posonly.final_c()
 
         sgd_params = {'alpha':[1e-100, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1],
                       'loss':['log', 'hinge'],

@@ -32,20 +32,22 @@ if __name__ == '__main__':
 
     filename = 'nytimes-smiles/results.csv'
     
+    line_limit = 30000
     if speed_multiple > 1:
         line_limit = 200
-    else:
-        line_liimt = 10000000
 
-    reader = unicode_csv_reader(open(filename), limit=200)
+
+    reader = unicode_csv_reader(open(filename), limit=line_limit)
     lines = [f for f in reader][1:]
     if speed_multiple > 1:
-        lines = lines[:200]
-    raw_text = [l[30] for l in lines]
-    raw_labels = [(float(l[32]), random.random())  for l in lines]
+        lines = lines[:line_limit]
+    raw_text = [l[30] for l in lines if l[32] != u'']
+    raw_labels = [(float(l[32]), random.random()) for l in lines if l[32] != u'']
 
     counter = sklearn.feature_extraction.text.CountVectorizer()
     counts = counter.fit_transform([t for t in raw_text]).todense()
+    # overfitting, so cut out a bunch of features
+    counts = counts[:,:10]
 
     optimal_points = []
     posonly_points = []
@@ -54,7 +56,7 @@ if __name__ == '__main__':
     if speed_multiple > 1:
         cs = [(0.1 * i) for i in xrange(1, 10)]
     else:
-        cs = [(0.01 * i) for i in xrange(10, 100)]
+        cs = [(0.01 * i) for i in xrange(1, 10)]
         '''
         cs.extend([(0.99 + (0.001 * i)) for i in xrange(1, 10)])
         cs.extend([(0.001 * i) for i in xrange(1, 10)])
@@ -62,10 +64,20 @@ if __name__ == '__main__':
 
     for c in cs:
         positive = np.vstack([d for i,d in enumerate(counts) if raw_labels[i][0] > 0])
-        negative = np.vstack([d for i,d in enumerate(counts) if raw_labels[i][0] <= 0])
+        negative = np.vstack([d for i,d in enumerate(counts) if raw_labels[i][0] < 0])
         positive_labeled = np.vstack([d for i,d in enumerate(counts) if raw_labels[i][0] > 0 and raw_labels[i][1] < c])
+
+        #skip if too high
+        if positive_labeled.shape[0] == positive.shape[0]:
+            continue
+
         positive_unlabeled = np.vstack([d for i,d in enumerate(counts) if raw_labels[i][0] > 0 and raw_labels[i][1] >= c])
         unlabeled = np.vstack([positive_unlabeled, negative])
+
+        print positive.shape
+        print negative.shape
+        print positive_labeled.shape
+        print positive_unlabeled.shape
         
         # skip data with no positive labels
         if positive_labeled.shape[0] < 3:
@@ -93,12 +105,12 @@ if __name__ == '__main__':
 
         n_iter = 1000
 
-        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=n_iter, eta0=0.1)
+        posonly = lr.SGDPosonlyMultinomialLogisticRegression(n_iter=n_iter, eta0=0.1, c=c)
         posonly.fit(X, y)
         t = posonly.score(testX, testY)
         #t = sklearn.metrics.roc_auc_score(testY, posonly.predict_proba(testX)[:,1])
         posonly_points.append([c, t])
-        print 'posonly:', t, 'c:', 1.0 / (1.0 + np.exp(posonly.b_))
+        print 'posonly:', t, 'c:', posonly.final_c()
 
         sgd_params = {'alpha':[1e-100, 1e-9, 1e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1],
                       'loss':['log', 'hinge'],
