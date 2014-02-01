@@ -1,0 +1,207 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%% ICML 2014 EXAMPLE LATEX SUBMISSION FILE %%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Use the following line _only_ if you're still using LaTeX 2.09.
+%\documentstyle[icml2014,epsf,natbib]{article}
+% If you rely on Latex2e packages, like most moden people use this:
+\documentclass{article}
+
+% use Times
+\usepackage{times}
+% For figures
+\usepackage{graphicx} % more modern
+%\usepackage{epsfig} % less modern
+\usepackage{subfigure} 
+
+% for big figures
+\usepackage{multicol}
+
+% For citations
+\usepackage{natbib}
+
+% For algorithms
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% As of 2011, we use the hyperref package to produce hyperlinks in the
+% resulting PDF.  If this breaks your system, please commend out the
+% following usepackage line and replace \usepackage{icml2014} with
+% \usepackage[nohyperref]{icml2014} above.
+\usepackage{hyperref}
+
+% Packages hyperref and algorithmic misbehave sometimes.  We can fix
+% this with the following command.
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+
+% Employ the following version of the ``usepackage'' statement for
+% submitting the draft version of the paper for review.  This will set
+% the note in the first column to ``Under review.  Do not distribute.''
+\usepackage{icml2014} 
+% Employ this version of the ``usepackage'' statement after the paper has
+% been accepted, when creating the final version.  This will set the
+% note in the first column to ``Proceedings of the...''
+%\usepackage[accepted]{icml2014}
+
+
+% The \icmltitle you define below is probably too long as a header.
+% Therefore, a short form for the running title is supplied here:
+\icmltitlerunning{Modified Logistic Regression for Training on Incomplete Positive and Unlabeled Datasets}
+
+\begin{document} 
+
+
+\onecolumn
+
+\section{Appendix A: Derivations of Stochastic Updates for POLR}
+
+\subsection{Positive-Only Logistic Regression Model}
+
+Let $q = \frac{1}{1 - minimumC} - 1$.
+
+$$
+p(k=P_L | x, w_p, w_n) =  \frac{e^{w_p \cdot x - b} + e^{w_p \cdot x + \log{q}}}{Z_{POLR}} 
+				     = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+$$
+$$
+p(k=P_U | x, w_p, w_n) =  \frac{e^{w_p \cdot x}}{Z_{POLR}} 
+				     = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+$$
+$$
+p(k=N | x, w_p, w_n) =  \frac{e^{w_n \cdot x}}{Z_{POLR}} 
+				 = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+$$
+And then dividing every term by $w_p$ and setting $w = w_n - w_p$.
+$$
+p(k=P_L | x, w_p, w_n) = \frac{e^{w_p \cdot x - b} + q \cdot e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+ 				     = \frac{e^{-b} + q}{1 + q + e^{-b} + e^{w \cdot x}}
+$$
+$$
+p(k=P_U | x, w_p, w_n) = \frac{e^{w_p \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+				     = \frac{1}{1 + q + e^{-b} + e^{w \cdot x}}
+$$
+$$
+p(k=N | x, w_p, w_n) = \frac{e^{w_n \cdot x}}{(1 + e^{-b} + q) \cdot e^{w_p \cdot x} + e^{w_n \cdot x}} 
+				= \frac{e^{w \cdot x}}{1 + q + e^{-b} + e^{w \cdot x}}
+$$
+
+
+So we only need to learn the vector $w$.
+
+\subsection{Gradients}
+
+We want to use stochastic gradient following to learn the parameters $\beta$. So take the partial derivatives of the log conditional likelihood (LCL) for each parameter.
+
+\subsubsection{$ \nabla_{w_i}{Err_R (D, \beta)}$}
+
+$$
+\nabla_{w_i}{Err_R (D, \beta)} = \frac{\partial}{\partial w_i} \log{p(D|\beta)} =  \sum_{j=1...n}{\frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)}}
+$$
+
+so for each $i,j$, ($Z = 1 + q + e^{-b} + e^{w \cdot x}$),
+
+
+\begin{eqnarray*}
+\nabla_{w_{i,j}}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial w_i}\log{p(\ell_j | x_j, \beta)} \\
+ &=& \frac{\partial}{\partial w_i}
+		\log{\Bigg(
+			I(\ell_j=1) \cdot \left( \frac{e^{-b} + q}{Z} \right) + 
+			I(\ell_j=0) \cdot \left(\frac{1}{Z} + \frac{e^{w \cdot x}}{Z} \right)
+		\Bigg)} \\
+ &=& \frac{\partial}{\partial w_i}
+		\log{\Bigg(
+		    \frac{
+			I(\ell_j=1) \cdot \left( e^{-b} + q \right) + 
+			I(\ell_j=0) \cdot \left(1 + e^{w \cdot x} \right)
+		     }{Z}
+		\Bigg)} \\
+ &=& \frac{\partial}{\partial w_i}
+		\log{\bigg(
+			I(\ell_j=1) \cdot \left( e^{-b} + q \right) +
+			I(\ell_j=0) \cdot \left( 1 + e^{w \cdot x} \right)
+		\bigg)}
+		- \frac{\partial}{\partial w_i}
+		 \log{Z} \\
+ &=& I(\ell_j=1) \cdot \frac{\partial}{\partial w_i}
+		\log{(e^{-b} + q)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
+		\log{ \left( 1 + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial w_i}
+		 \log{Z} \\
+ &=& I(\ell_j=0) \cdot \frac{\partial}{\partial w_i}
+		\log{  \left( 1 + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial w_i}
+		 \log{Z} \\
+ &=& I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w \cdot x}
+		}{
+			1 + e^{w \cdot x}
+		} \cdot x_{j,i}
+		- \frac{\partial}{\partial w_i}
+		 \log{Z} \\
+ &=& I(\ell_j=0) \cdot 
+ 		\frac{
+			e^{w \cdot x}
+		}{
+			1 + e^{w \cdot x}
+		} \cdot x_{j,i}
+		- \frac{e^{w \cdot x}}{
+			1 + e^{-b} + e^{w \cdot x}
+		} \cdot x_{j,i} \\
+ &=& x_{j,i} \cdot
+    \big(	I(\ell_j=0) \cdot p(k_j=N | \ell_j=0, x_j, \beta) - 
+		p(k_j=N | x_j, \beta)
+    \big) \\
+\end{eqnarray*}
+
+\subsubsection{$ \nabla_{b}{Err_R (D, \beta)}$}
+
+Similarly for the parameter $b$ in $\beta$, for each $j$,
+
+\begin{eqnarray*}
+\nabla_{b}{Err_R (x_j, \beta)} &=& \frac{\partial}{\partial c}\log{p(\ell_j | x_j, \beta)} \\
+&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{(e^{-b} + q)} +
+    I(\ell_j=0) \cdot \frac{\partial}{\partial b}
+		\log{ \left( 1 + e^{w \cdot x} \right) }
+		- \frac{\partial}{\partial b}
+		 \log{Z} \\
+&=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{(e^{-b} + q)} -
+		\frac{\partial}{\partial b}
+		 \log{Z} \\
+ &=& I(\ell_j=1) \cdot \frac{\partial}{\partial b}
+		\log{  \left( e^{-b} + q \right) }
+		- \frac{\partial}{\partial b}
+		 \log{\bigg(
+			1 + q + e^{-b} + e^{w \cdot x}
+		\bigg)} \\
+ &=& - I(\ell_j=1) \cdot
+		\frac{e^{-b}}{e^{-b} + q}
+		+
+		 \frac{e^{-b}}{
+			1 + q + e^{-b} + e^{w \cdot x}
+		} \\
+ &=& - I(\ell_j=1) \cdot
+		\frac{ \left( p(k=P_L | x_j,\beta) - \frac{q}{Z} \right) }{p(k=P_L | x_j,\beta)}
+		+
+		 p(k=P_L | x_j,\beta) - \frac{q}{Z} \\
+ &=& \Big( p(k=P_L | x_j,\beta) - \frac{q}{Z} \Big) \cdot \left( 
+		1 - \frac{ I(\ell_j=1)}{p(k=P_L | x_j,\beta)}
+	  \right) 
+\end{eqnarray*}
+
+\end{document} 
+
+
+% This document was modified from the file originally made available by
+% Pat Langley and Andrea Danyluk for ICML-2K. This version was
+% created by Lise Getoor and Tobias Scheffer, it was slightly modified  
+% from the 2010 version by Thorsten Joachims & Johannes Fuernkranz, 
+% slightly modified from the 2009 version by Kiri Wagstaff and 
+% Sam Roweis's 2008 version, which is slightly modified from 
+% Prasad Tadepalli's 2007 version which is a lightly 
+% changed version of the previous year's version by Andrew Moore, 
+% which was in turn edited from those of Kristian Kersting and 
+% Codrina Lauth. Alex Smola contributed to the algorithmic style files.  
